@@ -4,6 +4,16 @@
 
 **Concept, research and implementation by Christian Heinrich Hohlfeld.**
 
+## Download
+
+**[PhoLine.zip](https://github.com/ChristianHohlfeld/PhoLine/releases/latest/download/PhoLine.zip)** — Chrome-Extension, bei jedem Push neu gebaut.
+
+Im Repo selbst (gleiche Datei, Root): [`PhoLine.zip`](./PhoLine.zip)
+
+1. Zip entpacken → Ordner `pholine`
+2. Chrome → `chrome://extensions` → Entwicklermodus an
+3. **Entpackte Erweiterung laden** → den Ordner `pholine` wählen
+
 ---
 
 ## Author / Urheber
@@ -171,12 +181,16 @@ Related geometric work by the same author: Hohlfeld Data Representation (HDR) an
 
 ## Install the Chrome extension
 
-1. Clone this repository.
+**Fastest:** download **[PhoLine.zip](https://github.com/ChristianHohlfeld/PhoLine/releases/latest/download/PhoLine.zip)**. Every push to `main` rebuilds it.
+
+1. Unzip. You get a folder named `pholine`.
 2. Chrome → `chrome://extensions` → Developer mode on.
-3. **Load unpacked** → select the `extension/` folder (the one that contains `manifest.json`).
+3. **Load unpacked** → select that `pholine` folder.
 4. Open ChatGPT, Grok, Claude, or Gemini.
 5. Type normally. PhoLine rewrites the request body before it hits the tokenizer.
 6. Replies that start with `¶` are expanded in the page.
+
+Developers can instead load the `extension/` folder from a clone. `npm run pack` rebuilds `extension/pho.js` and `PhoLine.zip` locally.
 
 The HUD in the bottom-right corner reports the last rewrite. The popup toggles the hook and the decoder language (Deutsch / English).
 
@@ -237,6 +251,9 @@ extension/popup.*       on/off + decoder language
 research/phen_g2p.py    Stage-I G2P sketch (not the wire format)
 demo/index.html         offline encode/decode lab
 tests/codec.test.mjs    deterministic codec tests
+PhoLine.zip             unpacked Chrome extension (root, easy download)
+scripts/pack-extension.mjs  rebuild pho.js + zip
+.github/workflows/build.yml  test, pack, commit zip, publish Release
 CITATION.cff            machine-readable citation (GitHub "Cite this repository")
 ```
 

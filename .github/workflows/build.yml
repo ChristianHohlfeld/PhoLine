@@ -1,0 +1,79 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pholine-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-pack:
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.head_commit.message || '', '[skip ci]') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Codec tests
+        run: node tests/codec.test.mjs
+
+      - name: Rebuild extension and zip
+        run: node scripts/pack-extension.mjs
+
+      - name: Tests against rebuilt bundle
+        run: node tests/codec.test.mjs
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhoLine
+          path: PhoLine.zip
+          if-no-files-found: error
+
+      - name: Commit PhoLine.zip into the repo
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PhoLine.zip extension/pho.js
+          if git diff --staged --quiet; then
+            echo "zip unchanged"
+            exit 0
+          fi
+          git commit -m "build: refresh PhoLine.zip [skip ci]"
+          git push
+
+      - name: Publish download on Releases
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: PhoLine — Chrome extension
+          body: |
+            **[PhoLine.zip](https://github.com/ChristianHohlfeld/PhoLine/releases/latest/download/PhoLine.zip)**
+
+            Rebuilt from `${{ github.sha }}` on every push to `main`.
+
+            1. Download and unzip. You get a folder named `pholine`.
+            2. Chrome → `chrome://extensions` → Developer mode on.
+            3. **Load unpacked** → select the `pholine` folder.
+
+            Author: Christian Heinrich Hohlfeld
+            ORCID: https://orcid.org/0009-0003-6634-9045
+            https://christianhohlfeld.com/
+          files: PhoLine.zip
+          make_latest: true
+          allow_updates: true
