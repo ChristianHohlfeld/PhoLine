@@ -2,6 +2,22 @@
   const KEY = "pholine.enabled";
   const LANG_KEY = "pholine.lang";
   const STAT_KEY = "pholine.stats";
+  const SESSION_KEY = "pholine.session";
+
+  function countTokens(text) {
+    const api = globalThis.PhoLineCount;
+    if (api && typeof api.countTokens === "function") return api.countTokens(text || "");
+    const t = String(text || "").trim();
+    if (!t) return 0;
+    return t.split(/\s+/).reduce((n, w) => n + Math.max(1, Math.ceil(w.length / 4)), 0);
+  }
+
+  function splitPayload(to) {
+    const s = String(to || "");
+    const mark = s.lastIndexOf("¶");
+    if (mark < 0) return { protocol: "", wire: s.trim() };
+    return { protocol: s.slice(0, mark).trim(), wire: s.slice(mark).trim() };
+  }
 
   function hud() {
     let n = document.getElementById("pholine-hud");
@@ -9,14 +25,32 @@
     n = document.createElement("div");
     n.id = "pholine-hud";
     n.style.cssText =
-      "position:fixed;z-index:2147483647;right:12px;bottom:12px;background:#141413;color:#eceae4;border:1px solid rgba(236,234,228,.14);padding:10px 12px;font:12px/1.4 ui-sans-serif,system-ui;border-radius:10px;max-width:280px;box-shadow:0 8px 24px rgba(0,0,0,.35)";
-    document.documentElement.appendChild(n);
+      "position:fixed;z-index:2147483647;right:14px;bottom:14px;min-width:220px;background:#141413;color:#eceae4;border:1px solid rgba(236,234,228,.18);padding:12px 14px;font:13px/1.35 ui-sans-serif,system-ui;border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.4)";
+    (document.documentElement || document.body).appendChild(n);
     return n;
   }
 
-  function setHud(text) {
+  function setHud(htmlTitle, lines) {
     const n = hud();
-    n.textContent = text;
+    n.replaceChildren();
+    const kicker = document.createElement("div");
+    kicker.style.cssText = "font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9c9a93;margin-bottom:6px";
+    kicker.textContent = "PhoLine · o200k";
+    n.appendChild(kicker);
+    const big = document.createElement("div");
+    big.style.cssText = "font-size:28px;font-weight:650;letter-spacing:-.03em;line-height:1.1;color:#8fa382";
+    big.textContent = htmlTitle;
+    n.appendChild(big);
+    for (const line of lines) {
+      const p = document.createElement("div");
+      p.style.cssText = "margin-top:6px;font:12px/1.4 ui-monospace,Menlo,monospace;color:#eceae4";
+      p.textContent = line;
+      n.appendChild(p);
+    }
+  }
+
+  function idleHud() {
+    setHud("Kanal aktiv", ["Tab geladen · Hook sitzt auf fetch/WS.", "Ersparnis erscheint nach dem Senden."]);
   }
 
   async function pushCfg() {
@@ -25,34 +59,141 @@
       { type: "PHOLINE_CFG", enabled: s[KEY] !== false, inject: true },
       "*",
     );
+    window.postMessage({ type: "PHOLINE_HELLO" }, "*");
     return s;
   }
 
+  function shortUrl(url) {
+    try {
+      const u = new URL(url, location.href);
+      return u.host + u.pathname.slice(0, 56);
+    } catch {
+      return String(url).slice(0, 72);
+    }
+  }
+
+  function grabComposer() {
+    const nodes = document.querySelectorAll(
+      '#prompt-textarea, textarea, [contenteditable="true"], [role="textbox"]',
+    );
+    let best = "";
+    for (const n of nodes) {
+      if (n.closest && n.closest("#pholine-hud")) continue;
+      const t = (n.value || n.innerText || n.textContent || "").trim();
+      if (t.length > best.length) best = t;
+    }
+    return best;
+  }
+
+  async function noteComposer(text, why) {
+    if (!text || text.length < 2) return;
+    await chrome.storage.local.set({
+      "pholine.composer": { text: text.slice(0, 400), why, at: Date.now(), host: location.host },
+    });
+    setHud("Prompt gesehen", [location.host, why, text.slice(0, 80)]);
+  }
+
+  window.addEventListener(
+    "keydown",
+    (e) => {
+      if (e.key !== "Enter" || e.shiftKey) return;
+      const t = grabComposer();
+      if (t) void noteComposer(t, "enter");
+    },
+    true,
+  );
+  window.addEventListener(
+    "click",
+    (e) => {
+      const el = e.target && e.target.closest ? e.target.closest("button, [role='button']") : null;
+      if (!el) return;
+      const label = (el.getAttribute("aria-label") || el.getAttribute("data-testid") || el.textContent || "").toLowerCase();
+      if (!/send|submit|senden|absenden|paper-airplane|composer-submit/.test(label) && el.getAttribute("data-testid") !== "send-button") {
+        return;
+      }
+      const t = grabComposer();
+      if (t) void noteComposer(t, "send");
+    },
+    true,
+  );
+
   window.addEventListener("message", async (e) => {
-    if (e.source !== window || !e.data || e.data.type !== "PHOLINE_STAT") return;
+    if (e.source !== window || !e.data) return;
+    if (e.data.type === "PHOLINE_READY") {
+      await chrome.storage.local.set({
+        "pholine.hook": { version: e.data.version || "1.3.0", at: Date.now(), host: location.host },
+      });
+      return;
+    }
+    if (e.data.type === "PHOLINE_SEEN") {
+      await chrome.storage.local.set({
+        "pholine.seen": {
+          url: String(e.data.url || ""),
+          rewritten: !!e.data.rewritten,
+          bytes: e.data.bytes || 0,
+          note: String(e.data.note || ""),
+          at: Date.now(),
+          host: location.host,
+        },
+      });
+      if (!e.data.rewritten) {
+        setHud("Request gesehen", [
+          shortUrl(e.data.url || ""),
+          e.data.note === "no-user-text" ? "noch kein User-Text im Payload" : String(e.data.note || "nicht umgeschrieben"),
+        ]);
+      }
+      return;
+    }
+    if (e.data.type !== "PHOLINE_STAT") return;
     const from = String(e.data.from || "");
     const to = String(e.data.to || "");
-    const fromWords = from.trim().split(/\s+/).filter(Boolean).length;
-    const toWords = to.replace(/^PhoLine[\s\S]*?\n\n/, "").trim().split(/\s+/).filter(Boolean).length;
-    const pct = fromWords ? Math.round((1 - toWords / fromWords) * 100) : 0;
+    const { protocol, wire } = splitPayload(to);
+    const fromTokens = countTokens(from);
+    const toTokens = countTokens(wire);
+    const protocolTokens = protocol ? countTokens(protocol) : 0;
+    const saved = fromTokens - toTokens;
+    const pct = fromTokens ? Math.round((1 - toTokens / fromTokens) * 100) : 0;
     const rec = {
       at: Date.now(),
-      fromWords,
-      toWords,
+      fromTokens,
+      toTokens,
+      protocolTokens,
+      saved,
       pct,
+      encoding: "o200k",
+      url: String(e.data.url || ""),
     };
-    const prev = await chrome.storage.local.get({ [STAT_KEY]: [] });
+    const prev = await chrome.storage.local.get({
+      [STAT_KEY]: [],
+      [SESSION_KEY]: { n: 0, fromTokens: 0, toTokens: 0, saved: 0 },
+    });
     const list = Array.isArray(prev[STAT_KEY]) ? prev[STAT_KEY] : [];
     list.unshift(rec);
-    await chrome.storage.local.set({ [STAT_KEY]: list.slice(0, 40) });
-    setHud(
-      pct > 0
-        ? `PhoLine · Anfrage ${fromWords} → ${toWords} Wörter (−${pct}%)`
-        : `PhoLine · Anfrage gefiltert`,
-    );
+    const sess =
+      prev[SESSION_KEY] && typeof prev[SESSION_KEY] === "object"
+        ? prev[SESSION_KEY]
+        : { n: 0, fromTokens: 0, toTokens: 0, saved: 0 };
+    sess.n = (sess.n || 0) + 1;
+    sess.fromTokens = (sess.fromTokens || 0) + fromTokens;
+    sess.toTokens = (sess.toTokens || 0) + toTokens;
+    sess.saved = (sess.saved || 0) + saved;
+    await chrome.storage.local.set({ [STAT_KEY]: list.slice(0, 40), [SESSION_KEY]: sess });
+
+    const title = pct > 0 ? "−" + pct + " %" : pct < 0 ? "+" + Math.abs(pct) + " %" : "0 %";
+    const lines = [
+      fromTokens + " → " + toTokens + " Tokens",
+      saved > 0
+        ? "gespart " + saved + "  ·  Session −" + sess.saved
+        : "Session " + (sess.saved >= 0 ? "−" : "+") + Math.abs(sess.saved),
+    ];
+    if (protocolTokens) lines.push("Protokoll einmalig +" + protocolTokens);
+    setHud(title, lines);
+    const big = document.getElementById("pholine-hud") && document.getElementById("pholine-hud").children[1];
+    if (big && pct < 0) big.style.color = "#c9897a";
   });
 
   function decodeTree() {
+    if (!document.body) return;
     chrome.storage.local.get({ [LANG_KEY]: "de" }, (cfg) => {
       const lang = cfg[LANG_KEY] === "en" ? "en" : "de";
       const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
@@ -68,9 +209,10 @@
       }
       for (const p of nodes) {
         const full = (p.innerText || "").trim();
-        if (!PhoLine.isPhoLine(full)) continue;
+        if (!globalThis.PhoLine || !PhoLine.isPhoLine(full)) continue;
         p.dataset.phoDone = "1";
-        p.title = "billed: " + full;
+        const billed = countTokens(full);
+        p.title = "abgerechnet: " + billed + " Tokens · " + full;
         p.textContent = PhoLine.decode(full, lang);
       }
     });
@@ -83,5 +225,5 @@
   const obs = new MutationObserver(() => decodeTree());
   obs.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
   decodeTree();
-  setHud("PhoLine · Kanal aktiv");
+  idleHud();
 })();

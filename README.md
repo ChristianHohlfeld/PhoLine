@@ -13,6 +13,34 @@ Im Repo selbst (gleiche Datei, Root): [`PhoLine.zip`](./PhoLine.zip)
 1. Zip entpacken → Ordner `pholine`
 2. Chrome → `chrome://extensions` → Entwicklermodus an
 3. **Entpackte Erweiterung laden** → den Ordner `pholine` wählen
+4. **Alten Chat-Tab hart neu laden** (`Ctrl+Shift+R` / `Cmd+Shift+R`). Sonst sitzt der Hook nicht.
+
+### Wo die Ersparnis steht
+
+- **HUD** unten rechts im Chat-Tab: `−42 %` plus `alte → neue Tokens`.
+- **Popup** (Puzzle-Icon): letzte Anfrage, Session-Summe, oder diagnostisch „Hook sieht Requests“.
+
+Das Composer-Feld bleibt unangetastet. Umschreiben passiert im Request, bevor der Tokenizer zählt.
+
+### Warum 1.1 „Noch keine Anfrage in diesem Browser“ zeigte
+
+Die installierte 1.1-Zip hat den Request oft gar nicht gesehen:
+
+| Client | Was wirklich rausgeht | Was 1.1 erwartete |
+|---|---|---|
+| **Grok** | `wss://grok.com/ws/mgw/` JSON mit `event.item.x_grok.input_chunks[].text.text` | nur REST `/rest/app-chat` und `fetch` mit String-Body |
+| **ChatGPT** | `POST /backend-api/f/conversation` oft als `Request`/`Uint8Array`/`Blob` | nur `init.body` als String |
+| **Gemini** | `StreamGenerate` Form-Body, Prompt in `f.req` (JSON, oft doppelt kodiert) | flache Keys `message`/`prompt`/`text` |
+
+Ohne Treffer kein `PHOLINE_STAT`, also leeres Popup. **1.3** patched `fetch` (alle Body-Arten), `XMLHttpRequest` und `WebSocket.prototype.send`, matcht Grok-WS, ChatGPT-`parts` und Gemini-`f.req`, und schreibt selbst bei Miss `Request gesehen` ins Popup.
+
+Nach dem Update:
+
+1. Zip neu laden, in `chrome://extensions` die alte PhoLine **entfernen**, dann unpacked neu laden.
+2. Jeden Chat-Tab **hart** neu laden.
+3. Eine Nachricht senden. HUD muss erscheinen. Popup danach erneut öffnen.
+
+---
 
 ---
 
@@ -79,7 +107,7 @@ IPA belongs in the *filter* (what may be discarded), never in the *payload*.
 
 The sibling experiment [`PhO-Token-Wire`](https://github.com/ChristianHohlfeld/PhO-Token-Wire) (same author, same ORCID) rewrites the **composer** and measures competing Phen-A / Phen-B candidates.
 
-PhoLine v1.1 changes the cut:
+PhoLine v1.3 changes the cut:
 
 | | PhO Token Wire | **PhoLine (this repo)** |
 |---|---|---|

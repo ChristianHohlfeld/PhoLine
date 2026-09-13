@@ -43,6 +43,9 @@ const USER_KEYS = new Set([
   "question",
   "utterance",
   "content",
+  "input_text",
+  "input_chunks",
+  "contents",
 ]);
 
 export type Kept = {
@@ -259,30 +262,98 @@ export function stripMark(text: string): string {
   return text.replace(/^\s*¶\s*/, "");
 }
 
+export function isChatHost(host: string): boolean {
+  const h = String(host)
+    .replace(/:\d+$/, "")
+    .replace(/^www\./, "")
+    .toLowerCase();
+  return (
+    h === "chatgpt.com" ||
+    h === "chat.openai.com" ||
+    h === "grok.com" ||
+    h === "x.com" ||
+    h === "claude.ai" ||
+    h === "gemini.google.com" ||
+    h.endsWith(".chatgpt.com") ||
+    h.endsWith(".openai.com") ||
+    h.endsWith(".grok.com") ||
+    h.endsWith(".claude.ai") ||
+    h.endsWith(".gemini.google.com") ||
+    h === "api.x.ai" ||
+    h === "generativelanguage.googleapis.com" ||
+    h.endsWith(".clients6.google.com") ||
+    h.endsWith(".googleusercontent.com")
+  );
+}
+
+export function isAssetUrl(url: string): boolean {
+  const raw = String(url);
+  return (
+    /\.(js|css|mjs|map|png|jpe?g|gif|webp|svg|ico|woff2?|ttf|otf)(\?|$)/i.test(raw) ||
+    /\/cdn-cgi\//i.test(raw) ||
+    /\/(telemetry|analytics|sentry|collect|ces\/v1|sentinel|client-perf|v1\/rgstr)\b/i.test(raw)
+  );
+}
+
 export function isChatUrl(url: string): boolean {
-  const u = String(url);
-  if (/(?:backend-api|backend-anon)\/(?:f\/)?conversation/i.test(u)) return true;
-  if (/\/rest\/app-chat/i.test(u)) return true;
-  if (/chat_conversations\/[^/]+\/completion/i.test(u)) return true;
-  if (/\/v1\/chat\/completions/i.test(u)) return true;
-  if (/\/v1\/messages(?:\?|$)/i.test(u)) return true;
-  if (/generativelanguage\.googleapis/i.test(u)) return true;
-  if (/BardChatUi/i.test(u)) return true;
-  if (/\/api\/chat(?:\?|\/|$)/i.test(u)) return true;
-  if (/append_message/i.test(u)) return true;
-  if (/\/conversations\/[^/]+\/messages/i.test(u)) return true;
-  if (/\/app-chat\/conversations/i.test(u)) return true;
+  const raw = String(url);
+  let host = "";
+  let path = raw;
+  try {
+    const parsed = new URL(raw, "https://localhost");
+    host = parsed.host;
+    path = parsed.pathname + parsed.search;
+  } catch {
+    /* relative */
+  }
+
+  if (isAssetUrl(raw)) return false;
+
+  if (/(?:backend-api|backend-anon)\/(?:f\/)?conversation/i.test(raw)) return true;
+  if (/\/rest\/app-chat/i.test(raw)) return true;
+  if (/\/ws\/mgw/i.test(raw)) return true;
+  if (/wss?:\/\/[^/]*grok\.com/i.test(raw)) return true;
+  if (/chat_conversations\/[^/]+\/completion/i.test(raw)) return true;
+  if (/\/v1\/chat\/completions/i.test(raw)) return true;
+  if (/\/v1\/messages(?:\?|$)/i.test(raw)) return true;
+  if (/\/v1\/responses/i.test(raw)) return true;
+  if (/generativelanguage\.googleapis/i.test(raw)) return true;
+  if (/StreamGenerate|BardChatUi|batchexecute|BardFrontendService/i.test(raw)) return true;
+  if (/\/api\/chat(?:\?|\/|$)/i.test(raw)) return true;
+  if (/append_message/i.test(raw)) return true;
+  if (/\/conversations\/[^/]+\/messages/i.test(raw)) return true;
+  if (/\/app-chat\/conversations/i.test(raw)) return true;
+  if (/\$rpc\/google\.internal/i.test(raw)) return true;
+
+  if (isChatHost(host)) {
+    if (/\/(telemetry|analytics|sentry|collect|ces\/v1|sentinel)\b/i.test(path)) return false;
+    return true;
+  }
+  return false;
+}
+
+export function looksLikeChatPayload(body: string): boolean {
+  const s = String(body);
+  if (s.length < 8) return false;
+  if (/conversation\.item\.create|response\.create|input_chunks|session_id/.test(s)) return true;
+  if (/"author"\s*:\s*\{[^}]*"role"\s*:\s*"user"/s.test(s)) return true;
+  if (/"role"\s*:\s*"user"/.test(s) && /"content"|"parts"|"text"|"input_text"/.test(s)) return true;
+  if (/"modelName"\s*:/.test(s) && /"message"\s*:/.test(s)) return true;
+  if (/f\.req=/.test(s)) return true;
+  if (/"contents"\s*:\s*\[/.test(s) && /"parts"/.test(s)) return true;
   return false;
 }
 
 function looksLikeUserText(s: string): boolean {
-  if (s.length < 8) return false;
+  if (s.length < 2) return false;
   if (UUID_RE.test(s.trim())) return false;
   if (/^PhoLine\b/.test(s)) return false;
   if (isPhoLine(s)) return false;
   if (/^https?:\/\//.test(s) && !/\s/.test(s)) return false;
   if (!/[A-Za-zÄÖÜäöüß]/.test(s)) return false;
   if (s.trimStart().startsWith("{") || s.trimStart().startsWith("[")) return false;
+  if (/^[A-Za-z0-9+/_=-]{40,}$/.test(s) && !/\s/.test(s)) return false;
+  if (s.length < 12 && /^\S+$/.test(s) && /[_./]/.test(s)) return false;
   return true;
 }
 
@@ -323,14 +394,25 @@ export function rewriteChatPayload(
     if (node == null) return node;
     if (typeof node === "string") {
       if (!key || !USER_KEYS.has(key)) return node;
-      if (role === "assistant" || role === "system" || role === "tool") return node;
+      if (role === "assistant" || role === "system" || role === "tool" || role === "model" || role === "developer") {
+        return node;
+      }
       if (key === "content" && role !== "user") return node;
       if (role === "user" || key !== "content") return apply(node);
       return node;
     }
     if (Array.isArray(node)) {
-      if (key === "parts" && role !== "assistant" && role !== "system" && role !== "tool") {
-        return node.map((item) => (typeof item === "string" ? apply(item) : walk(item, null, role)));
+      if (key === "parts" && role !== "assistant" && role !== "system" && role !== "tool" && role !== "model") {
+        return node.map((item) => (typeof item === "string" ? apply(item) : walk(item, "parts", role)));
+      }
+      if (key === "input_chunks" && role !== "assistant" && role !== "system" && role !== "tool") {
+        return node.map((item) => walk(item, "input_chunks", role));
+      }
+      if (key === "contents") {
+        return node.map((item) => walk(item, "contents", role));
+      }
+      if (key === "input") {
+        return node.map((item) => walk(item, "input", role));
       }
       if (key === "messages") {
         let arr = node as unknown[];
@@ -381,28 +463,45 @@ export function rewriteRequestBody(
   url: string,
   opts: { primed: boolean; injectProtocol: boolean },
 ): { body: string; changed: boolean; primed: boolean; rewrites: RewriteHit[] } {
-  if (!isChatUrl(url)) {
+  const trimmed = body.trim();
+  if (!trimmed) {
     return { body, changed: false, primed: opts.primed, rewrites: [] };
   }
-  const trimmed = body.trim();
+  if (!isChatUrl(url) && !looksLikeChatPayload(trimmed)) {
+    return { body, changed: false, primed: opts.primed, rewrites: [] };
+  }
+
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
     try {
       const json = JSON.parse(body) as unknown;
-      const result = rewriteChatPayload(json, opts);
-      if (!result.rewrites.length) {
-        return { body, changed: false, primed: result.primed, rewrites: [] };
+      const keyed = rewriteChatPayload(json, opts);
+      if (keyed.rewrites.length) {
+        return {
+          body: JSON.stringify(keyed.payload),
+          changed: true,
+          primed: keyed.primed,
+          rewrites: keyed.rewrites,
+        };
       }
-      return {
-        body: JSON.stringify(result.payload),
-        changed: true,
-        primed: result.primed,
-        rewrites: result.rewrites,
-      };
+      const deep = rewriteDeepJson(json, {
+        primed: keyed.primed,
+        injectProtocol: opts.injectProtocol,
+      });
+      if (deep.rewrites.length) {
+        return {
+          body: JSON.stringify(deep.payload),
+          changed: true,
+          primed: deep.primed,
+          rewrites: deep.rewrites,
+        };
+      }
+      return { body, changed: false, primed: keyed.primed, rewrites: [] };
     } catch {
       return { body, changed: false, primed: opts.primed, rewrites: [] };
     }
   }
-  if (body.includes("=") && /(?:message|prompt|text|query|input)=/.test(body)) {
+
+  if (body.includes("=") && /(?:message|prompt|text|query|input|f\.req|user_input)=/.test(body)) {
     try {
       const params = new URLSearchParams(body);
       const rewrites: RewriteHit[] = [];
@@ -417,10 +516,89 @@ export function rewriteRequestBody(
         rewrites.push({ from: val, to: out.text });
         changed = true;
       }
+      const freq = params.get("f.req");
+      if (freq) {
+        const nested = rewriteNestedJsonText(freq, { primed, injectProtocol: opts.injectProtocol });
+        if (nested.changed) {
+          params.set("f.req", nested.body);
+          primed = nested.primed;
+          rewrites.push(...nested.rewrites);
+          changed = true;
+        }
+      }
       return { body: params.toString(), changed, primed, rewrites };
     } catch {
       return { body, changed: false, primed: opts.primed, rewrites: [] };
     }
   }
   return { body, changed: false, primed: opts.primed, rewrites: [] };
+}
+
+function rewriteNestedJsonText(
+  raw: string,
+  opts: { primed: boolean; injectProtocol: boolean },
+): { body: string; changed: boolean; primed: boolean; rewrites: RewriteHit[] } {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    const walked = rewriteDeepJson(parsed, opts);
+    if (!walked.rewrites.length) {
+      return { body: raw, changed: false, primed: walked.primed, rewrites: [] };
+    }
+    return {
+      body: JSON.stringify(walked.payload),
+      changed: true,
+      primed: walked.primed,
+      rewrites: walked.rewrites,
+    };
+  } catch {
+    return { body: raw, changed: false, primed: opts.primed, rewrites: [] };
+  }
+}
+
+function rewriteDeepJson(
+  node: unknown,
+  opts: { primed: boolean; injectProtocol: boolean },
+): RewriteResult {
+  const viaKeys = rewriteChatPayload(node, opts);
+  if (viaKeys.rewrites.length) return viaKeys;
+
+  const rewrites: RewriteHit[] = [];
+  let primed = opts.primed;
+
+  function walk(n: unknown): unknown {
+    if (typeof n === "string") {
+      const trimmed = n.trim();
+      if ((trimmed.startsWith("{") || trimmed.startsWith("[")) && n.length > 8) {
+        try {
+          const inner = JSON.parse(n) as unknown;
+          const next = walk(inner);
+          const encoded = JSON.stringify(next);
+          if (encoded !== n) return encoded;
+        } catch {
+          /* keep */
+        }
+      }
+      if (looksLikeUserText(n) && n.split(/\s+/).length >= 3) {
+        const out = encodeUserText(n, primed, opts.injectProtocol);
+        primed = out.primed;
+        if (out.text !== n) rewrites.push({ from: n, to: out.text });
+        return out.text;
+      }
+      return n;
+    }
+    if (Array.isArray(n)) return n.map(walk);
+    if (n && typeof n === "object") {
+      const rec = n as Record<string, unknown>;
+      const role = typeof rec.role === "string" ? rec.role : null;
+      if (role === "assistant" || role === "system" || role === "tool" || role === "model") {
+        return n;
+      }
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(rec)) out[k] = walk(v);
+      return out;
+    }
+    return n;
+  }
+
+  return { payload: walk(node), primed, rewrites };
 }
