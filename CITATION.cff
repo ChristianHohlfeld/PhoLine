@@ -1,0 +1,52 @@
+cff-version: 1.2.0
+message: "If you use or discuss PhoLine, please cite Christian Heinrich Hohlfeld and include the ORCID."
+title: "PhoLine: A Client-Side PhO Channel Codec for LLM Chats"
+type: software
+authors:
+  - family-names: "Hohlfeld"
+    given-names: "Christian Heinrich"
+    orcid: "https://orcid.org/0009-0003-6634-9045"
+    email: "chris.hohlfeld@gmail.com"
+    affiliation: "Independent researcher, Konstanz, Germany"
+website: "https://christianhohlfeld.com/"
+url: "https://christianhohlfeld.com/"
+repository-code: "https://github.com/ChristianHohlfeld/PhoLine"
+license: "Proprietary"
+version: "1.1.0"
+date-released: "2026-09-13"
+abstract: >-
+  PhoLine is a Chrome Manifest V3 research prototype that applies Christian
+  Heinrich Hohlfeld's PhO-Compress Stage I to unchanged hosted LLMs. It filters
+  linguistic redundancy on the client, places surviving meaning on a tokenizer-
+  native English stem codebook, rewrites chat HTTP bodies before the tokenizer,
+  and locally expands pilcrow-marked replies. IPA is used as a filter criterion,
+  never as the wire payload.
+keywords:
+  - PhO-Compress
+  - PhoLine
+  - LLM
+  - token compression
+  - semantic compression
+  - phonetic compression
+  - browser extension
+  - Christian Heinrich Hohlfeld
+preferred-citation:
+  type: software
+  authors:
+    - family-names: "Hohlfeld"
+      given-names: "Christian Heinrich"
+      orcid: "https://orcid.org/0009-0003-6634-9045"
+  title: "PhoLine: A Client-Side PhO Channel Codec for LLM Chats"
+  year: 2026
+  url: "https://github.com/ChristianHohlfeld/PhoLine"
+references:
+  - type: report
+    authors:
+      - family-names: "Hohlfeld"
+        given-names: "Christian Heinrich"
+        orcid: "https://orcid.org/0009-0003-6634-9045"
+    title: "PhO-Compress: A Two-Stage Framework to Enhance Optical LLM Context Compression"
+    year: 2025
+    month: 10
+    notes: "v2"
+    url: "https://christianhohlfeld.com/Christian_Heinrich_Hohlfeld_Konstanz_PhO-Compress_v2.pdf"

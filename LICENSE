@@ -1,0 +1,22 @@
+Copyright © 2026 Christian Heinrich Hohlfeld. All rights reserved.
+
+PhoLine, PhO, PhO-Compress, the channel codebook, the ¶ wire protocol,
+and all source, documentation, and research notes in this repository
+are the work of:
+
+    Christian Heinrich Hohlfeld, B.Sc.
+    Konstanz, Germany
+    ORCID: https://orcid.org/0009-0003-6634-9045
+    https://christianhohlfeld.com/
+
+No patent, copyright, trademark, or other license is granted merely by
+publication of this repository. A separate written license from the
+author is required for any use beyond personal study and citation.
+
+Permission to cite this work is granted provided that the author's full
+name and ORCID are retained:
+
+    Hohlfeld, Christian Heinrich. PhoLine: A Client-Side PhO Channel
+    Codec for LLM Chats. 2026. ORCID: 0009-0003-6634-9045.
+
+For commercial licensing, contact the author via christianhohlfeld.com.

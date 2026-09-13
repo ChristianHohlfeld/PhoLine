@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>PhoLine</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        width: 300px;
+        background: #0c0c0b;
+        color: #eceae4;
+        font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+        padding: 16px;
+      }
+      h1 {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0 0 4px;
+      }
+      p {
+        margin: 0 0 14px;
+        color: #9c9a93;
+        font-size: 12px;
+      }
+      label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 44px;
+      }
+      select {
+        background: #141413;
+        color: #eceae4;
+        border: 1px solid rgba(236, 234, 228, 0.14);
+        border-radius: 8px;
+        padding: 8px 10px;
+      }
+      #stat {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(236, 234, 228, 0.12);
+        font: 12px/1.45 ui-monospace, Menlo, monospace;
+        color: #8fa382;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>PhoLine</h1>
+    <p>Request-Hook vor dem Tokenizer. Decoder im Tab.</p>
+    <label>
+      Aktiv
+      <input id="on" type="checkbox" checked />
+    </label>
+    <label>
+      Decoder
+      <select id="lang">
+        <option value="de">Deutsch</option>
+        <option value="en">English</option>
+      </select>
+    </label>
+    <div id="stat">Noch keine Anfrage in diesem Browser.</div>
+    <script src="popup.js"></script>
+  </body>
+</html>

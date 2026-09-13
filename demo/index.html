@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PhoLine lab — Christian Heinrich Hohlfeld</title>
+    <meta name="author" content="Christian Heinrich Hohlfeld" />
+    <meta name="citation_author" content="Hohlfeld, Christian Heinrich" />
+    <link rel="author" href="https://orcid.org/0009-0003-6634-9045" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0c0c0b;
+        --fg: #eceae4;
+        --muted: #9c9a93;
+        --line: rgba(236, 234, 228, 0.14);
+        --accent: #8fa382;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font: 16px/1.5 "Segoe UI", system-ui, sans-serif;
+      }
+      main { max-width: 760px; margin: 0 auto; padding: 32px 20px 64px; }
+      h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.03em; margin: 0 0 8px; }
+      .meta { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+      .meta a { color: var(--accent); }
+      textarea {
+        width: 100%; min-height: 120px;
+        background: #141413; color: var(--fg);
+        border: 1px solid var(--line); border-radius: 10px;
+        padding: 12px 14px; font: inherit;
+      }
+      pre {
+        white-space: pre-wrap; word-break: break-word;
+        background: #141413; border: 1px solid var(--line);
+        border-radius: 10px; padding: 12px 14px; font: 13px/1.45 ui-monospace, Menlo, monospace;
+      }
+      label { display: block; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px; }
+      .row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+      button {
+        background: var(--fg); color: var(--bg); border: 0; border-radius: 8px;
+        padding: 10px 14px; font: 14px/1 inherit; cursor: pointer;
+      }
+      footer { margin-top: 40px; font-size: 12px; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>PhoLine lab</h1>
+      <p class="meta">
+        Encode / decode on this machine. No model, no network.<br />
+        Christian Heinrich Hohlfeld ·
+        ORCID <a href="https://orcid.org/0009-0003-6634-9045">0009-0003-6634-9045</a> ·
+        <a href="https://christianhohlfeld.com/">christianhohlfeld.com</a>
+      </p>
+      <label>Ausgangstext</label>
+      <textarea id="in">Heute Morgen hat der Bundestag den Entwurf zur Datenspeicherung beschlossen. Kritiker warnen vor einem Eingriff in die Privatsphäre.</textarea>
+      <div class="row">
+        <button type="button" id="run">Kodieren</button>
+      </div>
+      <label>Kanal (das zahlt der Tokenizer)</label>
+      <pre id="wire"></pre>
+      <label>Decoder Deutsch</label>
+      <pre id="de"></pre>
+      <label>Decoder English</label>
+      <pre id="en"></pre>
+      <label>Dropped</label>
+      <pre id="drop"></pre>
+      <footer>
+        IPA is the filter, never the payload. The channel rides stems the tokenizer already knows.
+        Copyright © 2026 Christian Heinrich Hohlfeld. All rights reserved.
+      </footer>
+    </main>
+    <script src="../extension/pho.js"></script>
+    <script>
+      const $ = (id) => document.getElementById(id);
+      function run() {
+        const t = $("in").value;
+        const out = PhoLine.encode(t);
+        $("wire").textContent = out.wire;
+        $("de").textContent = PhoLine.decode(out.wire, "de");
+        $("en").textContent = PhoLine.decode(out.wire, "en");
+        $("drop").textContent = (out.dropped || []).join(" · ") || "—";
+      }
+      $("run").addEventListener("click", run);
+      run();
+    </script>
+  </body>
+</html>

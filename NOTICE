@@ -1,0 +1,17 @@
+PhoLine
+Copyright © 2026 Christian Heinrich Hohlfeld
+
+Author:     Christian Heinrich Hohlfeld, B.Sc.
+ORCID:      https://orcid.org/0009-0003-6634-9045
+Website:    https://christianhohlfeld.com/
+GitHub:     https://github.com/ChristianHohlfeld
+Paper:      PhO-Compress v2, 25 October 2025
+            https://christianhohlfeld.com/Christian_Heinrich_Hohlfeld_Konstanz_PhO-Compress_v2.pdf
+
+This repository is an applied Stage-I implementation of PhO-Compress
+for ordinary hosted LLMs. It is not a complete optical PhO-Compress
+pipeline (Stage II / E_V is out of scope).
+
+Related public work by the same author:
+  - PhO-Token-Wire  https://github.com/ChristianHohlfeld/PhO-Token-Wire
+  - christianhohlfeld.com
