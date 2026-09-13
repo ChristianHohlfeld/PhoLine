@@ -75,5 +75,5 @@ jobs:
             ORCID: https://orcid.org/0009-0003-6634-9045
             https://christianhohlfeld.com/
           files: PhoLine.zip
+          overwrite_files: true
           make_latest: true
-          allow_updates: true
