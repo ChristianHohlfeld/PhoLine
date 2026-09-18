@@ -189,6 +189,33 @@ check("question mark stays on the wire, not turned into a period", () => {
   assert.doesNotMatch(stmt, /\?/);
 });
 
+check("inline code and JSON stay byte-exact on wire", () => {
+  const js = "if (loaded) click(); else fetchData();";
+  const fn = "async function save(){ await api.write(state); return state.id; }";
+  const json = '{"retry":3,"timeout_ms":1500,"enabled":false}';
+  assert.ok(Pho.encode("Prüfe JavaScript: " + js + " und erkläre den Fehler.").wire.includes(js));
+  assert.ok(Pho.encode("Review code: " + fn + ".").wire.includes(fn));
+  assert.ok(Pho.encode("Keep JSON exact: " + json + ".").wire.includes(json));
+});
+
+check("semantic operators survive compression", () => {
+  const de = Pho.encode("Ändere nicht die Datenbank, sondern nur die API. Wenn A und B gelten, nutze A oder B.").wire;
+  const deTokens = de.split(/\s+/);
+  assert.ok(deTokens.includes("not"), "German negation must survive");
+  assert.ok(deTokens.includes("only"), "German exclusivity must survive");
+  assert.ok(deTokens.includes("if"), "German condition must survive");
+  assert.ok(deTokens.includes("and"), "German conjunction must survive");
+  assert.ok(deTokens.includes("or"), "German alternative must survive");
+
+  const en = Pho.encode("Do not modify A or B, but only inspect C if D is true.").wire;
+  const enTokens = en.split(/\s+/);
+  assert.ok(enTokens.includes("not"), "English negation must survive");
+  assert.ok(enTokens.includes("or"), "English alternative must survive");
+  assert.ok(enTokens.includes("but"), "English contrast must survive");
+  assert.ok(enTokens.includes("only"), "English exclusivity must survive");
+  assert.ok(enTokens.includes("if"), "English condition must survive");
+});
+
 check("looksLikeChatPayload detects grok and chatgpt envelopes", () => {
   assert.equal(Pho.looksLikeChatPayload('{"event":{"type":"conversation.item.create","item":{"x_grok":{"input_chunks":[]}}}}'), true);
   assert.equal(Pho.looksLikeChatPayload('{"author":{"role":"user"},"content":{"parts":["hi there friend"]}}'), true);

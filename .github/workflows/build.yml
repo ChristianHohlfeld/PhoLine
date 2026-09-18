@@ -30,14 +30,21 @@ jobs:
       - name: Install deps
         run: npm install
 
-      - name: Codec tests
-        run: node tests/codec.test.mjs
-
       - name: Rebuild extension and zip
         run: node scripts/pack-extension.mjs
 
-      - name: Tests against rebuilt bundle
+      - name: Codec tests
         run: node tests/codec.test.mjs
+
+      - name: Exact o200k benchmark
+        run: npm run bench
+
+      - name: Upload benchmark report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pholine-benchmark
+          path: benchmarks/out/
+          if-no-files-found: error
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4

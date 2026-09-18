@@ -24,7 +24,7 @@ IN  ¶ new mix arch
 OUT ¶ mix arch split load. eye pack ctx. lang pack mean. both need pipe.`;
 
 const STRUCT_RE =
-  /https?:\/\/\S+|www\.\S+|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|`[^`]+`|\b\d+(?:[.,]\d+)*\b|\b[A-Z]{2,}[A-Z0-9_]{1,}\b/g;
+  /```[\s\S]*?```|`[^`\n]+`|\b(?:async\s+)?function\s+[A-Za-z_$][\w$]*\s*\([^\)\n]*\)\s*\{[^{}\n]*\}|\bif\s*\([^\)\n]*\)\s*[^;\n]+;\s*else\s+[^;\n]+;|\{(?=[^{}\n]*:)[^{}\n]*\}|https?:\/\/\S+|www\.\S+|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|\b[A-Z]{2,}(?:-[A-Za-z0-9]+)+\b|\b\d+(?:[.,]\d+)*\b|\b[A-Z]{2,}[A-Z0-9_]{1,}\b/g;
 
 const WORD_RE = /⟦U\d+⟧|[A-Za-zÄÖÜäöüß]+|\d+|[^\sA-Za-zÄÖÜäöüß\d⟦⟧]+/gu;
 
