@@ -189,6 +189,22 @@ check("question mark stays on the wire, not turned into a period", () => {
   assert.doesNotMatch(stmt, /\?/);
 });
 
+check("semantic operators survive compression", () => {
+  const de = Pho.encode("Ändere nicht die Datenbank, sondern nur die API. Wenn A und B gelten, nutze A oder B.").wire;
+  assert.match(de, /\\bnot\\b/, "German negation must survive");
+  assert.match(de, /\\bonly\\b/, "German exclusivity must survive");
+  assert.match(de, /\\bif\\b/, "German condition must survive");
+  assert.match(de, /\\band\\b/, "German conjunction must survive");
+  assert.match(de, /\\bor\\b/, "German alternative must survive");
+
+  const en = Pho.encode("Do not modify A or B, but only inspect C if D is true.").wire;
+  assert.match(en, /\\bnot\\b/, "English negation must survive");
+  assert.match(en, /\\bor\\b/, "English alternative must survive");
+  assert.match(en, /\\bbut\\b/, "English contrast must survive");
+  assert.match(en, /\\bonly\\b/, "English exclusivity must survive");
+  assert.match(en, /\\bif\\b/, "English condition must survive");
+});
+
 check("looksLikeChatPayload detects grok and chatgpt envelopes", () => {
   assert.equal(Pho.looksLikeChatPayload('{"event":{"type":"conversation.item.create","item":{"x_grok":{"input_chunks":[]}}}}'), true);
   assert.equal(Pho.looksLikeChatPayload('{"author":{"role":"user"},"content":{"parts":["hi there friend"]}}'), true);
