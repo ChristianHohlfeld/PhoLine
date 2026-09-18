@@ -30,13 +30,10 @@ jobs:
       - name: Install deps
         run: npm install
 
-      - name: Codec tests
-        run: node tests/codec.test.mjs
-
       - name: Rebuild extension and zip
         run: node scripts/pack-extension.mjs
 
-      - name: Tests against rebuilt bundle
+      - name: Codec tests
         run: node tests/codec.test.mjs
 
       - name: Exact o200k benchmark
