@@ -73,6 +73,8 @@ check("isChatUrl matches ChatGPT, Grok WS, Gemini, REST", () => {
   assert.equal(Pho.isChatUrl("https://api.x.ai/v1/chat/completions"), true);
   assert.equal(Pho.isChatUrl("https://example.com/blog"), false);
   assert.equal(Pho.isChatUrl("https://chatgpt.com/cdn-cgi/challenge.js"), false);
+  assert.equal(Pho.isChatUrl("https://chatgpt.com/"), false);
+  assert.equal(Pho.isChatUrl("https://chatgpt.com/api/auth/session"), false);
 });
 
 check("rewriteChatPayload rewrites user content and injects protocol once", () => {

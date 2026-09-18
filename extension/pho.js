@@ -1052,10 +1052,6 @@ OUT \xB6 mix arch split load. eye pack ctx. lang pack mean. both need pipe.`;
     if (/\/conversations\/[^/]+\/messages/i.test(raw)) return true;
     if (/\/app-chat\/conversations/i.test(raw)) return true;
     if (/\$rpc\/google\.internal/i.test(raw)) return true;
-    if (isChatHost(host)) {
-      if (/\/(telemetry|analytics|sentry|collect|ces\/v1|sentinel)\b/i.test(path)) return false;
-      return true;
-    }
     return false;
   }
   function looksLikeChatPayload(body) {

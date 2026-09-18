@@ -330,10 +330,7 @@ export function isChatUrl(url: string): boolean {
   if (/\/app-chat\/conversations/i.test(raw)) return true;
   if (/\$rpc\/google\.internal/i.test(raw)) return true;
 
-  if (isChatHost(host)) {
-    if (/\/(telemetry|analytics|sentry|collect|ces\/v1|sentinel)\b/i.test(path)) return false;
-    return true;
-  }
+  // Never match the whole host — that cloned every POST on chatgpt.com and aborted boot.
   return false;
 }
 

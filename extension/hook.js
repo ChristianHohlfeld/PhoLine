@@ -1,6 +1,6 @@
 /* MAIN world — patch fetch / XHR / WebSocket before the page's chat client boots. */
 (function () {
-  const VERSION = "1.3.3";
+  const VERSION = "1.3.4";
   const Pho = () => globalThis.PhoLine;
   let cfg = { enabled: true, inject: true, primed: false };
   const queue = [];
@@ -67,9 +67,8 @@
     const m = String(method || "GET").toUpperCase();
     if (m === "GET" || m === "HEAD" || m === "OPTIONS") return false;
     if (api.isAssetUrl && api.isAssetUrl(url)) return false;
-    if (api.isChatUrl(url)) return true;
-    if (api.isChatHost && api.isChatHost(location.host)) return true;
-    return false;
+    // Strict conversation endpoints only — never "any POST on chatgpt.com".
+    return !!(api.isChatUrl && api.isChatUrl(url));
   }
 
   async function readBody(body) {
@@ -277,15 +276,19 @@
     }
   }
 
-  install();
-  // Do NOT poll every 400ms — that burned CPU, especially with all_frames.
-  // Re-install only on load milestones and a rare safety check.
-  document.addEventListener("DOMContentLoaded", install, { once: true });
-  window.addEventListener("load", install, { once: true });
+  function arm() {
+    install();
+    post({ type: "PHOLINE_READY", version: VERSION, queued: 0 });
+  }
+  // Let ChatGPT finish its own boot before we touch fetch.
+  if (document.readyState === "complete") {
+    setTimeout(arm, 0);
+  } else {
+    window.addEventListener("load", () => setTimeout(arm, 50), { once: true });
+  }
   setInterval(() => {
     if (window.fetch !== hookedFetch || XMLHttpRequest.prototype.send !== hookedXhrSend || WebSocket.prototype.send !== hookedWsSend) {
       install();
     }
-  }, 8000);
-  post({ type: "PHOLINE_READY", version: VERSION, queued: 0 });
+  }, 10000);
 })();
