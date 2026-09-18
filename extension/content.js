@@ -284,13 +284,32 @@
   await pushCfg();
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
-    // Only re-push when enable/lang toggles — ignore high-frequency stats writes.
     if (changes[KEY] || changes[LANG_KEY]) void pushCfg();
   });
-  obs = new MutationObserver((records) => {
-    if (mutationMaybePho(records)) scheduleDecode();
+
+  // Do NOT observe the DOM during ChatGPT boot — subtree:true burned CPU/RAM.
+  // Decode only after we ourselves rewrote a send, or on a rare idle tick.
+  function startDecodeWatch() {
+    if (obs) return;
+    obs = new MutationObserver((records) => {
+      if (mutationMaybePho(records)) scheduleDecode();
+    });
+    obs.observe(document.body || document.documentElement, { childList: true, subtree: true });
+  }
+  window.addEventListener("message", (e) => {
+    if (e.source !== window || !e.data) return;
+    if (e.data.type === "PHOLINE_STAT") {
+      startDecodeWatch();
+      scheduleDecode();
+    }
   });
-  obs.observe(document.documentElement, { childList: true, subtree: true });
-  // No characterData watch — writing decode text would retrigger forever.
+  // Rare safety net only — not a hot loop.
+  setTimeout(() => {
+    if (document.body && document.body.innerText && document.body.innerText.includes("¶")) {
+      startDecodeWatch();
+      scheduleDecode();
+    }
+  }, 8000);
+
   idleHud();
 })();

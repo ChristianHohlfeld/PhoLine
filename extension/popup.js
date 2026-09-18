@@ -1,20 +1,6 @@
 
 function loadExactCounter() {
-  return new Promise((resolve, reject) => {
-    if (globalThis.PhoLineCount && typeof PhoLineCount.countTokens === "function") {
-      resolve(PhoLineCount.countTokens);
-      return;
-    }
-    const s = document.createElement("script");
-    s.src = "count.js";
-    s.onload = () => {
-      if (globalThis.PhoLineCount && typeof PhoLineCount.countTokens === "function") {
-        resolve(PhoLineCount.countTokens);
-      } else reject(new Error("PhoLineCount missing"));
-    };
-    s.onerror = () => reject(new Error("count.js failed"));
-    (document.documentElement || document.head).appendChild(s);
-  });
+  return Promise.reject(new Error("exact counter disabled"));
 }
 
 const KEY = "pholine.enabled";

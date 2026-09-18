@@ -1,6 +1,6 @@
 /* MAIN world — patch fetch / XHR / WebSocket before the page's chat client boots. */
 (function () {
-  const VERSION = "1.3.4";
+  const VERSION = "1.3.5";
   const Pho = () => globalThis.PhoLine;
   let cfg = { enabled: true, inject: true, primed: false };
   const queue = [];
@@ -51,10 +51,12 @@
   }
 
   function seen(url, rewritten, bytes, note) {
+    // Only notify on real rewrites — probing every chat URL flooded the page.
+    if (!rewritten) return;
     post({
       type: "PHOLINE_SEEN",
       url: String(url || ""),
-      rewritten: !!rewritten,
+      rewritten: true,
       bytes: bytes || 0,
       note: note || "",
       at: Date.now(),
@@ -71,9 +73,18 @@
     return !!(api.isChatUrl && api.isChatUrl(url));
   }
 
+  const MAX_BODY = 48000; // never clone multi-MB conversation history into RAM
+
+  function tooBig(n) {
+    return typeof n === "number" && n > MAX_BODY;
+  }
+
   async function readBody(body) {
     if (body == null) return null;
-    if (typeof body === "string") return { text: body, kind: "string" };
+    if (typeof body === "string") {
+      if (body.length > MAX_BODY) return null;
+      return { text: body, kind: "string" };
+    }
     if (typeof URLSearchParams !== "undefined" && body instanceof URLSearchParams) {
       return { text: body.toString(), kind: "params" };
     }
@@ -86,12 +97,15 @@
       return { text: new URLSearchParams(entries).toString(), kind: "form", entries };
     }
     if (typeof Blob !== "undefined" && body instanceof Blob) {
+      if (tooBig(body.size)) return null;
       return { text: await body.text(), kind: "blob", type: body.type };
     }
     if (body instanceof ArrayBuffer) {
+      if (tooBig(body.byteLength)) return null;
       return { text: new TextDecoder().decode(body), kind: "buffer" };
     }
     if (ArrayBuffer.isView(body)) {
+      if (tooBig(body.byteLength)) return null;
       return {
         text: new TextDecoder().decode(body),
         kind: "view",
@@ -125,6 +139,11 @@
       return null;
     }
     if (typeof text !== "string" || !text) return null;
+    if (text.length > MAX_BODY) return null;
+    // Skip history/sync payloads — only touch real outgoing chat envelopes.
+    if (api.looksLikeChatPayload && !api.looksLikeChatPayload(text)) {
+      return null;
+    }
     const result = api.rewriteRequestBody(text, url, {
       primed: cfg.primed,
       injectProtocol: cfg.inject,
@@ -158,7 +177,16 @@
       ).toUpperCase();
       if (shouldWatch(url, method)) {
         let packed = null;
-        if (init && init.body != null) packed = await readBody(init.body);
+        const cl = (() => {
+          try {
+            const h = (init && init.headers) ? new Headers(init.headers) : (input instanceof Request ? input.headers : null);
+            if (!h) return 0;
+            return parseInt(h.get("content-length") || "0", 10) || 0;
+          } catch { return 0; }
+        })();
+        if (tooBig(cl)) {
+          /* skip huge history payloads */
+        } else if (init && init.body != null) packed = await readBody(init.body);
         else if (input instanceof Request) packed = await readBody(await input.clone().arrayBuffer());
         if (packed && packed.text) {
           const body = await rewritePacked(packed, url);
@@ -280,15 +308,8 @@
     install();
     post({ type: "PHOLINE_READY", version: VERSION, queued: 0 });
   }
-  // Let ChatGPT finish its own boot before we touch fetch.
-  if (document.readyState === "complete") {
-    setTimeout(arm, 0);
-  } else {
-    window.addEventListener("load", () => setTimeout(arm, 50), { once: true });
-  }
-  setInterval(() => {
-    if (window.fetch !== hookedFetch || XMLHttpRequest.prototype.send !== hookedXhrSend || WebSocket.prototype.send !== hookedWsSend) {
-      install();
-    }
-  }, 10000);
+  // Late install: never fight ChatGPT's own bootstrap.
+  const delay = () => setTimeout(arm, 1500);
+  if (document.readyState === "complete") delay();
+  else window.addEventListener("load", delay, { once: true });
 })();

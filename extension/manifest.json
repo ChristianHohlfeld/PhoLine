@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "PhoLine",
-  "version": "1.3.4",
-  "description": "PhO filter on the wire. Boot-safe hooks; no host-wide POST intercept.",
+  "version": "1.3.5",
+  "description": "PhO filter. Boot-safe: late hooks, body cap, no DOM watch until send.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "PhoLine",
@@ -79,24 +79,5 @@
     "48": "icon-48.png",
     "128": "icon-128.png"
   },
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "count.js"
-      ],
-      "matches": [
-        "https://chatgpt.com/*",
-        "https://*.chatgpt.com/*",
-        "https://chat.openai.com/*",
-        "https://grok.com/*",
-        "https://*.grok.com/*",
-        "https://x.com/*",
-        "https://*.x.com/*",
-        "https://claude.ai/*",
-        "https://*.claude.ai/*",
-        "https://gemini.google.com/*",
-        "https://*.gemini.google.com/*"
-      ]
-    }
-  ]
+  "web_accessible_resources": []
 }

@@ -35,12 +35,12 @@ function bundle(entry, outfile) {
 }
 
 bundle(join(root, "src", "extension-entry.ts"), join(extDir, "pho.js"));
-bundle(join(root, "src", "count-entry.ts"), join(extDir, "count.js"));
+// count.js (gpt-tokenizer ~5MB) is NOT shipped — it froze ChatGPT on load.
+// Popup uses the fast estimate; exact o200k can return later as an optional lazy asset.
 
 const files = [
   "manifest.json",
   "pho.js",
-  "count.js",
   "hook.js",
   "content.js",
   "popup.html",
