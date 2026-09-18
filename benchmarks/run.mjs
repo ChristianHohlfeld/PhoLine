@@ -125,3 +125,14 @@ mkdirSync(join(here, "out"), { recursive: true });
 writeFileSync(join(here, "out", "results.json"), JSON.stringify({ summary, byCategory, rows }, null, 2));
 writeFileSync(join(here, "out", "summary.md"), lines.join("\n"));
 console.log(JSON.stringify(summary, null, 2));
+if (risks.length) {
+  console.log(JSON.stringify({
+    riskCases: risks.map((r) => ({
+      id: r.id,
+      polarityKept: r.polarityKept,
+      exclusiveKept: r.exclusiveKept,
+      original: r.text,
+      wire: r.wire
+    }))
+  }, null, 2));
+}
