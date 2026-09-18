@@ -4,15 +4,16 @@
   const STAT_KEY = "pholine.stats";
   const SESSION_KEY = "pholine.session";
 
+  // Fast estimate for HUD only — exact o200k loads lazily in the popup (count.js is 5MB and froze Chrome at document_start).
   function countTokens(text) {
-    const pho = globalThis.PhoLine;
-    const api = globalThis.PhoLineCount;
-    if (pho && typeof pho.countTokens === "function") return pho.countTokens(text || "");
-    if (api && typeof api.countTokens === "function") return api.countTokens(text || "");
-    // Last resort only — real o200k lives on PhoLine after pack.
-    const t = String(text || "").trim();
+    const t = String(text || "");
     if (!t) return 0;
-    return t.split(/\s+/).reduce((n, w) => n + Math.max(1, Math.ceil(w.length / 4)), 0);
+    let n = 0;
+    for (const w of t.trim().split(/\s+/)) {
+      if (!w) continue;
+      n += Math.max(1, Math.ceil([...w].length / 4));
+    }
+    return n;
   }
 
   function splitPayload(to) {
@@ -253,8 +254,13 @@
   chrome.storage.onChanged.addListener(() => {
     void pushCfg();
   });
-  const obs = new MutationObserver(() => decodeTree());
+  let decodeTimer = 0;
+  const scheduleDecode = () => {
+    clearTimeout(decodeTimer);
+    decodeTimer = setTimeout(decodeTree, 300);
+  };
+  const obs = new MutationObserver(scheduleDecode);
   obs.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
-  decodeTree();
+  scheduleDecode();
   idleHud();
 })();

@@ -1,3 +1,22 @@
+
+function loadExactCounter() {
+  return new Promise((resolve, reject) => {
+    if (globalThis.PhoLineCount && typeof PhoLineCount.countTokens === "function") {
+      resolve(PhoLineCount.countTokens);
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = "count.js";
+    s.onload = () => {
+      if (globalThis.PhoLineCount && typeof PhoLineCount.countTokens === "function") {
+        resolve(PhoLineCount.countTokens);
+      } else reject(new Error("PhoLineCount missing"));
+    };
+    s.onerror = () => reject(new Error("count.js failed"));
+    (document.documentElement || document.head).appendChild(s);
+  });
+}
+
 const KEY = "pholine.enabled";
 const LANG_KEY = "pholine.lang";
 const STAT_KEY = "pholine.stats";
@@ -128,6 +147,43 @@ chrome.storage.local.get(
         view = "after";
         setOpen(true);
       });
+
+      if (last.fromText && last.toText) {
+        loadExactCounter()
+          .then((count) => {
+            const fromTokens = count(last.fromText);
+            const toTokens = count(last.toText);
+            const saved = fromTokens - toTokens;
+            const pct = fromTokens ? Math.round((1 - toTokens / fromTokens) * 100) : 0;
+            last.fromTokens = fromTokens;
+            last.toTokens = toTokens;
+            last.saved = saved;
+            last.pct = pct;
+            last.encoding = "o200k";
+            const sign = pct > 0 ? "−" : pct < 0 ? "+" : "";
+            const exact = [
+              "Letzte Anfrage  " + fromTokens + " → " + toTokens + " Tokens  ▸",
+              "Ersparnis       " + sign + Math.abs(pct) + " %  (" + (saved >= 0 ? "−" : "+") + Math.abs(saved) + ")  · exakt o200k",
+            ];
+            if (last.protocolTokens) exact.push("Protokoll einmalig +" + last.protocolTokens);
+            if (last.url) exact.push(String(last.url).slice(0, 72));
+            if (sess.n) {
+              exact.push("");
+              exact.push("Session " + sess.n + " Anfragen");
+              exact.push(fmt(sess.fromTokens) + " → " + fmt(sess.toTokens) + "  gespart " + fmt(sess.saved));
+            }
+            exact.push("");
+            exact.push("Tippen für Unbearbeitet ↔ Danach");
+            el.textContent = exact.join("\n");
+            if (open) renderDetail();
+            const list = Array.isArray(s[STAT_KEY]) ? s[STAT_KEY].slice() : [];
+            if (list[0]) {
+              Object.assign(list[0], { fromTokens, toTokens, saved, pct, encoding: "o200k" });
+              chrome.storage.local.set({ [STAT_KEY]: list });
+            }
+          })
+          .catch(() => {});
+      }
     } else if (seen && seen.url) {
       el.classList.remove("empty");
       el.textContent =

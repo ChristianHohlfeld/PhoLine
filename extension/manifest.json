@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "PhoLine",
-  "version": "1.3.1",
-  "description": "PhO filter on the wire. HUD shows real o200k token savings.",
+  "version": "1.3.2",
+  "description": "PhO filter on the wire. Lightweight HUD; exact o200k in popup.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "PhoLine",
@@ -54,9 +54,8 @@
     {
       "world": "ISOLATED",
       "run_at": "document_start",
-      "all_frames": true,
+      "all_frames": false,
       "js": [
-        "count.js",
         "pho.js",
         "content.js"
       ],
@@ -79,5 +78,25 @@
     "16": "icon-16.png",
     "48": "icon-48.png",
     "128": "icon-128.png"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "count.js"
+      ],
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://*.chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://grok.com/*",
+        "https://*.grok.com/*",
+        "https://x.com/*",
+        "https://*.x.com/*",
+        "https://claude.ai/*",
+        "https://*.claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://*.gemini.google.com/*"
+      ]
+    }
+  ]
 }
