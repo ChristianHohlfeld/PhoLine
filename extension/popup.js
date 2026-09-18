@@ -146,9 +146,11 @@ chrome.storage.local.get(
       el.textContent =
         "Hook live (" + (hook.version || "?") + ") auf " + (hook.host || "") + " " + ago(hook.at) + ".\n" +
         "Noch keine Anfrage. Im Chat-Tab senden, Popup danach erneut öffnen.";
-    } else if (last && last.fromWords) {
+    } else if (last && (last.fromWords || last.fromTokens != null)) {
+      el.classList.remove("empty");
       el.textContent =
-        "Letzte Anfrage " + last.fromWords + " → " + last.toWords + " Wörter. Extension neu laden für Token-Zählung.";
+        "Alte Statistik ohne Text/Token-API.\n" +
+        "Extension entfernen → neu laden → Chat-Tab hart refreshen → einmal senden.";
     }
   },
 );

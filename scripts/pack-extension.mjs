@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Rebuild extension/pho.js from TypeScript and pack PhoLine.zip at the repo root.
+ * Rebuild extension/pho.js + extension/count.js from TypeScript and pack PhoLine.zip.
  * Copyright © 2026 Christian Heinrich Hohlfeld
  * ORCID: https://orcid.org/0009-0003-6634-9045
  */
@@ -10,8 +10,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const entry = join(root, "src", "extension-entry.ts");
-const outfile = join(root, "extension", "pho.js");
 const zipPath = join(root, "PhoLine.zip");
 const extDir = join(root, "extension");
 
@@ -21,22 +19,28 @@ function run(cmd, args) {
 }
 
 const localEsbuild = join(root, "node_modules", "esbuild", "bin", "esbuild");
-const esbuildArgs = [
-  entry,
-  "--bundle",
-  "--format=iife",
-  "--platform=browser",
-  "--target=es2022",
-  `--outfile=${outfile}`,
-  "--legal-comments=none",
-];
 
-if (existsSync(localEsbuild)) run(localEsbuild, esbuildArgs);
-else run("npx", ["--yes", "esbuild", ...esbuildArgs]);
+function bundle(entry, outfile) {
+  const esbuildArgs = [
+    entry,
+    "--bundle",
+    "--format=iife",
+    "--platform=browser",
+    "--target=es2022",
+    `--outfile=${outfile}`,
+    "--legal-comments=none",
+  ];
+  if (existsSync(localEsbuild)) run(localEsbuild, esbuildArgs);
+  else run("npx", ["--yes", "esbuild", ...esbuildArgs]);
+}
+
+bundle(join(root, "src", "extension-entry.ts"), join(extDir, "pho.js"));
+bundle(join(root, "src", "count-entry.ts"), join(extDir, "count.js"));
 
 const files = [
   "manifest.json",
   "pho.js",
+  "count.js",
   "hook.js",
   "content.js",
   "popup.html",

@@ -27,6 +27,9 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Install deps
+        run: npm install
+
       - name: Codec tests
         run: node tests/codec.test.mjs
 
@@ -48,7 +51,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add PhoLine.zip extension/pho.js
+          git add PhoLine.zip extension/pho.js extension/count.js
           if git diff --staged --quiet; then
             echo "zip unchanged"
             exit 0

@@ -5,8 +5,11 @@
   const SESSION_KEY = "pholine.session";
 
   function countTokens(text) {
+    const pho = globalThis.PhoLine;
     const api = globalThis.PhoLineCount;
+    if (pho && typeof pho.countTokens === "function") return pho.countTokens(text || "");
     if (api && typeof api.countTokens === "function") return api.countTokens(text || "");
+    // Last resort only — real o200k lives on PhoLine after pack.
     const t = String(text || "").trim();
     if (!t) return 0;
     return t.split(/\s+/).reduce((n, w) => n + Math.max(1, Math.ceil(w.length / 4)), 0);
