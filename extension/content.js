@@ -224,43 +224,73 @@
     if (big && pct < 0) big.style.color = "#c9897a";
   });
 
+  let decoding = false;
+  let decodeTimer = 0;
+  let obs = null;
+
   function decodeTree() {
-    if (!document.body) return;
-    chrome.storage.local.get({ [LANG_KEY]: "de" }, (cfg) => {
-      const lang = cfg[LANG_KEY] === "en" ? "en" : "de";
-      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-      const nodes = [];
-      while (walker.nextNode()) {
-        const t = walker.currentNode;
-        const v = t.nodeValue || "";
-        if (!/¶/.test(v)) continue;
-        const p = t.parentElement;
-        if (!p || p.dataset.phoDone) continue;
-        if (p.closest("#pholine-hud, #pholine-toast, textarea, [contenteditable='true']")) continue;
-        nodes.push(p);
+    if (decoding || !document.body || !globalThis.PhoLine) return;
+    decoding = true;
+    if (obs) obs.disconnect();
+    try {
+      chrome.storage.local.get({ [LANG_KEY]: "de" }, (cfg) => {
+        try {
+          const lang = cfg[LANG_KEY] === "en" ? "en" : "de";
+          const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+          const nodes = [];
+          while (walker.nextNode()) {
+            const t = walker.currentNode;
+            const v = t.nodeValue || "";
+            if (!v.includes("¶")) continue;
+            const p = t.parentElement;
+            if (!p || p.dataset.phoDone) continue;
+            if (p.closest("#pholine-hud, #pholine-toast, textarea, [contenteditable='true']")) continue;
+            nodes.push(p);
+          }
+          for (const p of nodes) {
+            const full = (p.innerText || "").trim();
+            if (!PhoLine.isPhoLine(full)) continue;
+            p.dataset.phoDone = "1";
+            const billed = countTokens(full);
+            p.title = "abgerechnet: " + billed + " Tokens · " + full;
+            p.textContent = PhoLine.decode(full, lang);
+          }
+        } finally {
+          decoding = false;
+          if (obs) obs.observe(document.documentElement, { childList: true, subtree: true });
+        }
+      });
+    } catch {
+      decoding = false;
+      if (obs) obs.observe(document.documentElement, { childList: true, subtree: true });
+    }
+  }
+
+  function scheduleDecode() {
+    clearTimeout(decodeTimer);
+    decodeTimer = setTimeout(decodeTree, 900);
+  }
+
+  function mutationMaybePho(records) {
+    for (const r of records) {
+      for (const n of r.addedNodes) {
+        const t = n.nodeType === 3 ? n.nodeValue : n.textContent;
+        if (t && t.includes("¶")) return true;
       }
-      for (const p of nodes) {
-        const full = (p.innerText || "").trim();
-        if (!globalThis.PhoLine || !PhoLine.isPhoLine(full)) continue;
-        p.dataset.phoDone = "1";
-        const billed = countTokens(full);
-        p.title = "abgerechnet: " + billed + " Tokens · " + full;
-        p.textContent = PhoLine.decode(full, lang);
-      }
-    });
+    }
+    return false;
   }
 
   await pushCfg();
-  chrome.storage.onChanged.addListener(() => {
-    void pushCfg();
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local") return;
+    // Only re-push when enable/lang toggles — ignore high-frequency stats writes.
+    if (changes[KEY] || changes[LANG_KEY]) void pushCfg();
   });
-  let decodeTimer = 0;
-  const scheduleDecode = () => {
-    clearTimeout(decodeTimer);
-    decodeTimer = setTimeout(decodeTree, 300);
-  };
-  const obs = new MutationObserver(scheduleDecode);
-  obs.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
-  scheduleDecode();
+  obs = new MutationObserver((records) => {
+    if (mutationMaybePho(records)) scheduleDecode();
+  });
+  obs.observe(document.documentElement, { childList: true, subtree: true });
+  // No characterData watch — writing decode text would retrigger forever.
   idleHud();
 })();

@@ -1,6 +1,6 @@
 /* MAIN world — patch fetch / XHR / WebSocket before the page's chat client boots. */
 (function () {
-  const VERSION = "1.3.0";
+  const VERSION = "1.3.3";
   const Pho = () => globalThis.PhoLine;
   let cfg = { enabled: true, inject: true, primed: false };
   const queue = [];
@@ -278,6 +278,14 @@
   }
 
   install();
-  setInterval(install, 400);
+  // Do NOT poll every 400ms — that burned CPU, especially with all_frames.
+  // Re-install only on load milestones and a rare safety check.
+  document.addEventListener("DOMContentLoaded", install, { once: true });
+  window.addEventListener("load", install, { once: true });
+  setInterval(() => {
+    if (window.fetch !== hookedFetch || XMLHttpRequest.prototype.send !== hookedXhrSend || WebSocket.prototype.send !== hookedWsSend) {
+      install();
+    }
+  }, 8000);
   post({ type: "PHOLINE_READY", version: VERSION, queued: 0 });
 })();

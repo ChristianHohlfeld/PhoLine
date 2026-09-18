@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "PhoLine",
-  "version": "1.3.2",
-  "description": "PhO filter on the wire. Lightweight HUD; exact o200k in popup.",
+  "version": "1.3.3",
+  "description": "PhO filter on the wire. CPU-safe hooks; exact o200k only in popup.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "PhoLine",
@@ -32,7 +32,7 @@
     {
       "world": "MAIN",
       "run_at": "document_start",
-      "all_frames": true,
+      "all_frames": false,
       "js": [
         "pho.js",
         "hook.js"
