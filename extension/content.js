@@ -153,6 +153,10 @@
     const protocolTokens = protocol ? countTokens(protocol) : 0;
     const saved = fromTokens - toTokens;
     const pct = fromTokens ? Math.round((1 - toTokens / fromTokens) * 100) : 0;
+    const clip = (s, n = 8000) => {
+      s = String(s || "");
+      return s.length > n ? s.slice(0, n) + "…" : s;
+    };
     const rec = {
       at: Date.now(),
       fromTokens,
@@ -162,6 +166,9 @@
       pct,
       encoding: "o200k",
       url: String(e.data.url || ""),
+      fromText: clip(from),
+      toText: clip(wire),
+      toFull: clip(to),
     };
     const prev = await chrome.storage.local.get({
       [STAT_KEY]: [],

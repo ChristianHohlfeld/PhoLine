@@ -7,7 +7,7 @@
       :root { color-scheme: dark; }
       body {
         margin: 0;
-        width: 340px;
+        width: 360px;
         background: #0c0c0b;
         color: #eceae4;
         font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
@@ -40,6 +40,56 @@
         white-space: pre-wrap;
       }
       #stat.empty { color: #9c9a93; }
+      #stat.clickable {
+        cursor: pointer;
+        user-select: none;
+      }
+      #stat.clickable:hover {
+        border-color: rgba(143, 163, 130, 0.45);
+      }
+      #detail {
+        display: none;
+        margin-top: 8px;
+        border: 1px solid rgba(236, 234, 228, 0.12);
+        border-radius: 10px;
+        background: #141413;
+        overflow: hidden;
+      }
+      #detail.open { display: block; }
+      .tabs {
+        display: flex;
+        gap: 0;
+        border-bottom: 1px solid rgba(236, 234, 228, 0.12);
+      }
+      .tabs button {
+        flex: 1;
+        background: transparent;
+        color: #9c9a93;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        padding: 10px 8px;
+        font: 12px/1.2 "Segoe UI", system-ui, sans-serif;
+        cursor: pointer;
+      }
+      .tabs button.active {
+        color: #eceae4;
+        border-bottom-color: #8fa382;
+      }
+      #detailMeta {
+        padding: 8px 12px 0;
+        font: 11px/1.4 ui-monospace, Menlo, monospace;
+        color: #8fa382;
+      }
+      #detailBody {
+        margin: 0;
+        padding: 10px 12px 12px;
+        max-height: 220px;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font: 12px/1.45 ui-monospace, Menlo, monospace;
+        color: #eceae4;
+      }
       #hint {
         margin-top: 10px;
         color: #9c9a93;
@@ -63,7 +113,15 @@
       </select>
     </label>
     <div id="stat" class="empty">Warte auf Hook … Chat-Tab hart neu laden (Ctrl+Shift+R), dann senden.</div>
-    <p id="hint">HUD sitzt unten rechts im Chat-Tab. Das Composer-Feld bleibt unangetastet — umgeschrieben wird der Request.</p>
+    <div id="detail" aria-live="polite">
+      <div class="tabs">
+        <button type="button" id="tabBefore" class="active">Unbearbeitet</button>
+        <button type="button" id="tabAfter">Danach</button>
+      </div>
+      <div id="detailMeta"></div>
+      <pre id="detailBody"></pre>
+    </div>
+    <p id="hint">HUD sitzt unten rechts im Chat-Tab. Tippe auf „Letzte Anfrage“, um Vorher/Nachher zu sehen.</p>
     <script src="popup.js"></script>
   </body>
 </html>
