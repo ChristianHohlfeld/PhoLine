@@ -1,15 +1,18 @@
+/* ISOLATED world — config bridge, HUD, deferred decode watch. */
 (async function () {
+  "use strict";
+
   const KEY = "pholine.enabled";
   const LANG_KEY = "pholine.lang";
   const STAT_KEY = "pholine.stats";
   const SESSION_KEY = "pholine.session";
 
-  // Fast estimate for HUD only — exact o200k loads lazily in the popup (count.js is 5MB and froze Chrome at document_start).
+  /** Word-ish token estimate (no gpt-tokenizer). */
   function countTokens(text) {
-    const t = String(text || "");
+    const t = String(text || "").trim();
     if (!t) return 0;
     let n = 0;
-    for (const w of t.trim().split(/\s+/)) {
+    for (const w of t.split(/\s+/)) {
       if (!w) continue;
       n += Math.max(1, Math.ceil([...w].length / 4));
     }
@@ -23,59 +26,59 @@
     return { protocol: s.slice(0, mark).trim(), wire: s.slice(mark).trim() };
   }
 
-  function hud() {
+  function ensureHud() {
     let n = document.getElementById("pholine-hud");
     if (n) return n;
     n = document.createElement("div");
     n.id = "pholine-hud";
     n.style.cssText =
-      "position:fixed;z-index:2147483647;right:12px;bottom:12px;max-width:240px;background:#141413;color:#eceae4;border:1px solid rgba(236,234,228,.14);padding:8px 10px;font:12px/1.3 ui-sans-serif,system-ui;border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,.28);opacity:.92";
+      "position:fixed;z-index:2147483647;right:12px;bottom:12px;max-width:260px;" +
+      "background:#141413;color:#eceae4;border:1px solid rgba(236,234,228,.14);" +
+      "padding:6px 9px;font:12px/1.3 ui-sans-serif,system-ui;border-radius:10px;" +
+      "box-shadow:0 8px 20px rgba(0,0,0,.28);opacity:.78";
     (document.documentElement || document.body).appendChild(n);
     return n;
   }
 
-  function setHud(htmlTitle, lines, mode) {
-    const n = hud();
+  function setIdleHud() {
+    const n = ensureHud();
     n.replaceChildren();
-    const compact = mode === "idle" || mode === "compact";
-    if (compact) {
-      n.style.minWidth = "";
-      n.style.padding = "6px 9px";
-      n.style.opacity = "0.78";
-      const row = document.createElement("div");
-      row.style.cssText = "display:flex;align-items:baseline;gap:8px;white-space:nowrap";
-      const mark = document.createElement("span");
-      mark.style.cssText = "font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#9c9a93";
-      mark.textContent = "PhoLine";
-      const title = document.createElement("span");
-      title.style.cssText = "font-size:12px;font-weight:600;color:#8fa382";
-      title.textContent = htmlTitle;
-      row.appendChild(mark);
-      row.appendChild(title);
-      n.appendChild(row);
-      return;
-    }
+    n.style.padding = "6px 9px";
+    n.style.opacity = "0.78";
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:baseline;gap:8px;white-space:nowrap";
+    const mark = document.createElement("span");
+    mark.style.cssText =
+      "font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#9c9a93";
+    mark.textContent = "PhoLine";
+    const title = document.createElement("span");
+    title.style.cssText = "font-size:12px;font-weight:600;color:#8fa382";
+    title.textContent = "bereit";
+    row.append(mark, title);
+    n.appendChild(row);
+  }
+
+  function setStatHud(title, lines) {
+    const n = ensureHud();
+    n.replaceChildren();
     n.style.padding = "8px 10px";
     n.style.opacity = "0.92";
     const kicker = document.createElement("div");
-    kicker.style.cssText = "font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#9c9a93;margin-bottom:4px";
-    kicker.textContent = "PhoLine · o200k";
-    n.appendChild(kicker);
+    kicker.style.cssText =
+      "font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#9c9a93;margin-bottom:4px";
+    kicker.textContent = "PhoLine";
     const big = document.createElement("div");
-    big.style.cssText = "font-size:20px;font-weight:650;letter-spacing:-.03em;line-height:1.1;color:#8fa382";
-    big.textContent = htmlTitle;
-    n.appendChild(big);
+    big.style.cssText =
+      "font-size:20px;font-weight:650;letter-spacing:-.03em;line-height:1.1;color:#8fa382";
+    big.textContent = title;
+    n.append(kicker, big);
     for (const line of lines || []) {
       const p = document.createElement("div");
-      p.style.cssText = "margin-top:4px;font:11px/1.35 ui-monospace,Menlo,monospace;color:#eceae4";
+      p.style.cssText =
+        "margin-top:4px;font:11px/1.35 ui-monospace,Menlo,monospace;color:#eceae4";
       p.textContent = line;
       n.appendChild(p);
     }
-  }
-
-  function idleHud() {
-    // Tiny pill only — no essay on the chat UI.
-    setHud("bereit", [], "idle");
   }
 
   async function pushCfg() {
@@ -88,88 +91,110 @@
     return s;
   }
 
-  function shortUrl(url) {
+  let decoding = false;
+  let decodeTimer = 0;
+  let obs = null;
+  let watchStarted = false;
+
+  function decodeTree() {
+    if (decoding || !document.body || !globalThis.PhoLine) return;
+    decoding = true;
+    if (obs) obs.disconnect();
     try {
-      const u = new URL(url, location.href);
-      return u.host + u.pathname.slice(0, 56);
+      chrome.storage.local.get({ [LANG_KEY]: "de" }, (cfg) => {
+        try {
+          const lang = cfg[LANG_KEY] === "en" ? "en" : "de";
+          if (!document.body.innerText.includes("¶")) return;
+
+          const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+          const parents = [];
+          while (walker.nextNode()) {
+            const node = walker.currentNode;
+            const v = node.nodeValue || "";
+            if (!v.includes("¶")) continue;
+            const p = node.parentElement;
+            if (!p || p.dataset.phoDone) continue;
+            if (p.closest("#pholine-hud, textarea, [contenteditable='true']")) continue;
+            parents.push(p);
+          }
+
+          for (const p of parents) {
+            const full = (p.innerText || "").trim();
+            if (!PhoLine.isPhoLine(full)) continue;
+            p.dataset.phoDone = "1";
+            p.title = "abgerechnet ≈ " + countTokens(full) + " · " + full;
+            p.textContent = PhoLine.decode(full, lang);
+          }
+        } finally {
+          decoding = false;
+          if (obs) {
+            obs.observe(document.body || document.documentElement, {
+              childList: true,
+              subtree: true,
+            });
+          }
+        }
+      });
     } catch {
-      return String(url).slice(0, 72);
-    }
-  }
-
-  function grabComposer() {
-    const nodes = document.querySelectorAll(
-      '#prompt-textarea, textarea, [contenteditable="true"], [role="textbox"]',
-    );
-    let best = "";
-    for (const n of nodes) {
-      if (n.closest && n.closest("#pholine-hud")) continue;
-      const t = (n.value || n.innerText || n.textContent || "").trim();
-      if (t.length > best.length) best = t;
-    }
-    return best;
-  }
-
-  async function noteComposer(text, why) {
-    if (!text || text.length < 2) return;
-    await chrome.storage.local.set({
-      "pholine.composer": { text: text.slice(0, 400), why, at: Date.now(), host: location.host },
-    });
-    setHud("Prompt gesehen", [location.host, why, text.slice(0, 80)]);
-  }
-
-  window.addEventListener(
-    "keydown",
-    (e) => {
-      if (e.key !== "Enter" || e.shiftKey) return;
-      const t = grabComposer();
-      if (t) void noteComposer(t, "enter");
-    },
-    true,
-  );
-  window.addEventListener(
-    "click",
-    (e) => {
-      const el = e.target && e.target.closest ? e.target.closest("button, [role='button']") : null;
-      if (!el) return;
-      const label = (el.getAttribute("aria-label") || el.getAttribute("data-testid") || el.textContent || "").toLowerCase();
-      if (!/send|submit|senden|absenden|paper-airplane|composer-submit/.test(label) && el.getAttribute("data-testid") !== "send-button") {
-        return;
+      decoding = false;
+      if (obs) {
+        obs.observe(document.body || document.documentElement, {
+          childList: true,
+          subtree: true,
+        });
       }
-      const t = grabComposer();
-      if (t) void noteComposer(t, "send");
-    },
-    true,
-  );
+    }
+  }
+
+  function scheduleDecode() {
+    clearTimeout(decodeTimer);
+    decodeTimer = setTimeout(decodeTree, 600);
+  }
+
+  function mutationHasPilcrow(records) {
+    for (const r of records) {
+      for (const n of r.addedNodes) {
+        const t = n.nodeType === 3 ? n.nodeValue : n.textContent;
+        if (t && t.includes("¶")) return true;
+      }
+    }
+    return false;
+  }
+
+  function startDecodeWatch() {
+    if (watchStarted) return;
+    watchStarted = true;
+    if (!obs) {
+      obs = new MutationObserver((records) => {
+        if (mutationHasPilcrow(records)) scheduleDecode();
+      });
+    }
+    obs.observe(document.body || document.documentElement, {
+      childList: true,
+      subtree: true,
+    });
+    scheduleDecode();
+  }
 
   window.addEventListener("message", async (e) => {
     if (e.source !== window || !e.data) return;
+
     if (e.data.type === "PHOLINE_READY") {
       await chrome.storage.local.set({
-        "pholine.hook": { version: e.data.version || "1.3.0", at: Date.now(), host: location.host },
-      });
-      return;
-    }
-    if (e.data.type === "PHOLINE_SEEN") {
-      await chrome.storage.local.set({
-        "pholine.seen": {
-          url: String(e.data.url || ""),
-          rewritten: !!e.data.rewritten,
-          bytes: e.data.bytes || 0,
-          note: String(e.data.note || ""),
+        "pholine.hook": {
+          version: e.data.version || "1.4.0",
           at: Date.now(),
           host: location.host,
         },
       });
-      if (!e.data.rewritten) {
-        setHud("Request gesehen", [
-          shortUrl(e.data.url || ""),
-          e.data.note === "no-user-text" ? "noch kein User-Text im Payload" : String(e.data.note || "nicht umgeschrieben"),
-        ]);
-      }
       return;
     }
+
     if (e.data.type !== "PHOLINE_STAT") return;
+
+    startDecodeWatch();
+    scheduleDecode();
+
     const from = String(e.data.from || "");
     const to = String(e.data.to || "");
     const { protocol, wire } = splitPayload(to);
@@ -182,6 +207,7 @@
       s = String(s || "");
       return s.length > n ? s.slice(0, n) + "…" : s;
     };
+
     const rec = {
       at: Date.now(),
       fromTokens,
@@ -189,12 +215,13 @@
       protocolTokens,
       saved,
       pct,
-      encoding: "o200k",
+      encoding: "estimate",
       url: String(e.data.url || ""),
       fromText: clip(from),
       toText: clip(wire),
       toFull: clip(to),
     };
+
     const prev = await chrome.storage.local.get({
       [STAT_KEY]: [],
       [SESSION_KEY]: { n: 0, fromTokens: 0, toTokens: 0, saved: 0 },
@@ -209,77 +236,21 @@
     sess.fromTokens = (sess.fromTokens || 0) + fromTokens;
     sess.toTokens = (sess.toTokens || 0) + toTokens;
     sess.saved = (sess.saved || 0) + saved;
-    await chrome.storage.local.set({ [STAT_KEY]: list.slice(0, 40), [SESSION_KEY]: sess });
+    await chrome.storage.local.set({
+      [STAT_KEY]: list.slice(0, 40),
+      [SESSION_KEY]: sess,
+    });
 
     const title = pct > 0 ? "−" + pct + " %" : pct < 0 ? "+" + Math.abs(pct) + " %" : "0 %";
     const lines = [
-      fromTokens + " → " + toTokens + " Tokens",
+      fromTokens + " → " + toTokens + " (Schätzung)",
       saved > 0
         ? "gespart " + saved + "  ·  Session −" + sess.saved
         : "Session " + (sess.saved >= 0 ? "−" : "+") + Math.abs(sess.saved),
     ];
     if (protocolTokens) lines.push("Protokoll einmalig +" + protocolTokens);
-    setHud(title, lines);
-    const big = document.getElementById("pholine-hud") && document.getElementById("pholine-hud").children[1];
-    if (big && pct < 0) big.style.color = "#c9897a";
+    setStatHud(title, lines);
   });
-
-  let decoding = false;
-  let decodeTimer = 0;
-  let obs = null;
-
-  function decodeTree() {
-    if (decoding || !document.body || !globalThis.PhoLine) return;
-    decoding = true;
-    if (obs) obs.disconnect();
-    try {
-      chrome.storage.local.get({ [LANG_KEY]: "de" }, (cfg) => {
-        try {
-          const lang = cfg[LANG_KEY] === "en" ? "en" : "de";
-          const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-          const nodes = [];
-          while (walker.nextNode()) {
-            const t = walker.currentNode;
-            const v = t.nodeValue || "";
-            if (!v.includes("¶")) continue;
-            const p = t.parentElement;
-            if (!p || p.dataset.phoDone) continue;
-            if (p.closest("#pholine-hud, #pholine-toast, textarea, [contenteditable='true']")) continue;
-            nodes.push(p);
-          }
-          for (const p of nodes) {
-            const full = (p.innerText || "").trim();
-            if (!PhoLine.isPhoLine(full)) continue;
-            p.dataset.phoDone = "1";
-            const billed = countTokens(full);
-            p.title = "abgerechnet: " + billed + " Tokens · " + full;
-            p.textContent = PhoLine.decode(full, lang);
-          }
-        } finally {
-          decoding = false;
-          if (obs) obs.observe(document.documentElement, { childList: true, subtree: true });
-        }
-      });
-    } catch {
-      decoding = false;
-      if (obs) obs.observe(document.documentElement, { childList: true, subtree: true });
-    }
-  }
-
-  function scheduleDecode() {
-    clearTimeout(decodeTimer);
-    decodeTimer = setTimeout(decodeTree, 900);
-  }
-
-  function mutationMaybePho(records) {
-    for (const r of records) {
-      for (const n of r.addedNodes) {
-        const t = n.nodeType === 3 ? n.nodeValue : n.textContent;
-        if (t && t.includes("¶")) return true;
-      }
-    }
-    return false;
-  }
 
   await pushCfg();
   chrome.storage.onChanged.addListener((changes, area) => {
@@ -287,29 +258,15 @@
     if (changes[KEY] || changes[LANG_KEY]) void pushCfg();
   });
 
-  // Do NOT observe the DOM during ChatGPT boot — subtree:true burned CPU/RAM.
-  // Decode only after we ourselves rewrote a send, or on a rare idle tick.
-  function startDecodeWatch() {
-    if (obs) return;
-    obs = new MutationObserver((records) => {
-      if (mutationMaybePho(records)) scheduleDecode();
-    });
-    obs.observe(document.body || document.documentElement, { childList: true, subtree: true });
-  }
-  window.addEventListener("message", (e) => {
-    if (e.source !== window || !e.data) return;
-    if (e.data.type === "PHOLINE_STAT") {
-      startDecodeWatch();
-      scheduleDecode();
-    }
-  });
-  // Rare safety net only — not a hot loop.
+  // No MutationObserver at boot. One late check for ¶, then stop if none.
   setTimeout(() => {
-    if (document.body && document.body.innerText && document.body.innerText.includes("¶")) {
-      startDecodeWatch();
-      scheduleDecode();
+    try {
+      const text = document.body && document.body.innerText;
+      if (text && text.includes("¶")) startDecodeWatch();
+    } catch {
+      /* ignore */
     }
   }, 8000);
 
-  idleHud();
+  setIdleHud();
 })();

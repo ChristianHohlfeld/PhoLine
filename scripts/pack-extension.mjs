@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Rebuild extension/pho.js + extension/count.js from TypeScript and pack PhoLine.zip.
+ * Rebuild extension/pho.js from TypeScript and pack PhoLine.zip.
+ * Does NOT bundle count.js (gpt-tokenizer ~5MB froze ChatGPT).
  * Copyright © 2026 Christian Heinrich Hohlfeld
  * ORCID: https://orcid.org/0009-0003-6634-9045
  */
@@ -35,8 +36,6 @@ function bundle(entry, outfile) {
 }
 
 bundle(join(root, "src", "extension-entry.ts"), join(extDir, "pho.js"));
-// count.js (gpt-tokenizer ~5MB) is NOT shipped — it froze ChatGPT on load.
-// Popup uses the fast estimate; exact o200k can return later as an optional lazy asset.
 
 const files = [
   "manifest.json",
@@ -56,8 +55,11 @@ import os, zipfile
 root = ${JSON.stringify(extDir)}
 out = ${JSON.stringify(zipPath)}
 files = ${JSON.stringify(files)}
+banned = ("count.js", "count")
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
     for name in files:
+        if "count" in name.lower():
+            raise SystemExit("refusing to pack " + name)
         path = os.path.join(root, name)
         if not os.path.isfile(path):
             raise SystemExit("missing " + name)
