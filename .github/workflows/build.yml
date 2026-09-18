@@ -39,6 +39,16 @@ jobs:
       - name: Tests against rebuilt bundle
         run: node tests/codec.test.mjs
 
+      - name: Exact o200k benchmark
+        run: npm run bench
+
+      - name: Upload benchmark report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pholine-benchmark
+          path: benchmarks/out/
+          if-no-files-found: error
+
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
