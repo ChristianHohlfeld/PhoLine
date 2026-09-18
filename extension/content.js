@@ -25,32 +25,53 @@
     n = document.createElement("div");
     n.id = "pholine-hud";
     n.style.cssText =
-      "position:fixed;z-index:2147483647;right:14px;bottom:14px;min-width:220px;background:#141413;color:#eceae4;border:1px solid rgba(236,234,228,.18);padding:12px 14px;font:13px/1.35 ui-sans-serif,system-ui;border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.4)";
+      "position:fixed;z-index:2147483647;right:12px;bottom:12px;max-width:240px;background:#141413;color:#eceae4;border:1px solid rgba(236,234,228,.14);padding:8px 10px;font:12px/1.3 ui-sans-serif,system-ui;border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,.28);opacity:.92";
     (document.documentElement || document.body).appendChild(n);
     return n;
   }
 
-  function setHud(htmlTitle, lines) {
+  function setHud(htmlTitle, lines, mode) {
     const n = hud();
     n.replaceChildren();
+    const compact = mode === "idle" || mode === "compact";
+    if (compact) {
+      n.style.minWidth = "";
+      n.style.padding = "6px 9px";
+      n.style.opacity = "0.78";
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;align-items:baseline;gap:8px;white-space:nowrap";
+      const mark = document.createElement("span");
+      mark.style.cssText = "font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#9c9a93";
+      mark.textContent = "PhoLine";
+      const title = document.createElement("span");
+      title.style.cssText = "font-size:12px;font-weight:600;color:#8fa382";
+      title.textContent = htmlTitle;
+      row.appendChild(mark);
+      row.appendChild(title);
+      n.appendChild(row);
+      return;
+    }
+    n.style.padding = "8px 10px";
+    n.style.opacity = "0.92";
     const kicker = document.createElement("div");
-    kicker.style.cssText = "font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9c9a93;margin-bottom:6px";
+    kicker.style.cssText = "font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#9c9a93;margin-bottom:4px";
     kicker.textContent = "PhoLine · o200k";
     n.appendChild(kicker);
     const big = document.createElement("div");
-    big.style.cssText = "font-size:28px;font-weight:650;letter-spacing:-.03em;line-height:1.1;color:#8fa382";
+    big.style.cssText = "font-size:20px;font-weight:650;letter-spacing:-.03em;line-height:1.1;color:#8fa382";
     big.textContent = htmlTitle;
     n.appendChild(big);
-    for (const line of lines) {
+    for (const line of lines || []) {
       const p = document.createElement("div");
-      p.style.cssText = "margin-top:6px;font:12px/1.4 ui-monospace,Menlo,monospace;color:#eceae4";
+      p.style.cssText = "margin-top:4px;font:11px/1.35 ui-monospace,Menlo,monospace;color:#eceae4";
       p.textContent = line;
       n.appendChild(p);
     }
   }
 
   function idleHud() {
-    setHud("Kanal aktiv", ["Tab geladen · Hook sitzt auf fetch/WS.", "Ersparnis erscheint nach dem Senden."]);
+    // Tiny pill only — no essay on the chat UI.
+    setHud("bereit", [], "idle");
   }
 
   async function pushCfg() {
