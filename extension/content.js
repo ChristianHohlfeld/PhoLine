@@ -1,4 +1,4 @@
-/* ISOLATED world — config bridge, HUD, deferred decode watch. */
+/* ISOLATED world — config bridge, HUD, deferred one-shot decode. */
 (async function () {
   "use strict";
 
@@ -6,6 +6,11 @@
   const LANG_KEY = "pholine.lang";
   const STAT_KEY = "pholine.stats";
   const SESSION_KEY = "pholine.session";
+
+  const MAX_TEXT_NODES = 2000;
+  const MAX_PARENTS = 8;
+  /** One-shot decode delays after PHOLINE_STAT (ms). No long-lived observer. */
+  const DECODE_PASSES = [200, 500, 1000, 1500, 2200];
 
   /** Word-ish token estimate (no gpt-tokenizer). */
   function countTokens(text) {
@@ -92,34 +97,64 @@
   }
 
   let decoding = false;
-  let decodeTimer = 0;
-  let obs = null;
-  let watchStarted = false;
+  const pendingDecodeTimers = [];
 
+  function skipSubtree(el) {
+    if (!el || el.nodeType !== 1) return true;
+    if (el.id === "pholine-hud") return true;
+    const tag = el.tagName;
+    if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SCRIPT" || tag === "STYLE")
+      return true;
+    if (el.isContentEditable || el.getAttribute("contenteditable") === "true") return true;
+    return false;
+  }
+
+  /**
+   * Bounded ¶ decode: TreeWalker with early exit (max text nodes / ¶ parents).
+   * Never reads document.body.innerText (full-page serialization).
+   */
   function decodeTree() {
     if (decoding || !document.body || !globalThis.PhoLine) return;
     decoding = true;
-    if (obs) obs.disconnect();
     try {
       chrome.storage.local.get({ [LANG_KEY]: "de" }, (cfg) => {
         try {
           const lang = cfg[LANG_KEY] === "en" ? "en" : "de";
-          if (!document.body.innerText.includes("¶")) return;
+          const walker = document.createTreeWalker(
+            document.body,
+            NodeFilter.SHOW_TEXT,
+            {
+              acceptNode(node) {
+                const p = node.parentElement;
+                if (!p) return NodeFilter.FILTER_REJECT;
+                if (p.closest("#pholine-hud, textarea, input, [contenteditable='true']"))
+                  return NodeFilter.FILTER_REJECT;
+                if (skipSubtree(p)) return NodeFilter.FILTER_REJECT;
+                return NodeFilter.FILTER_ACCEPT;
+              },
+            },
+          );
 
-          const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
           const parents = [];
+          const seen = new Set();
+          let scanned = 0;
           while (walker.nextNode()) {
+            scanned++;
+            if (scanned > MAX_TEXT_NODES) break;
             const node = walker.currentNode;
             const v = node.nodeValue || "";
             if (!v.includes("¶")) continue;
             const p = node.parentElement;
-            if (!p || p.dataset.phoDone) continue;
-            if (p.closest("#pholine-hud, textarea, [contenteditable='true']")) continue;
+            if (!p || p.dataset.phoDone || seen.has(p)) continue;
+            if (p.closest("#pholine-hud, textarea, input, [contenteditable='true']")) continue;
+            seen.add(p);
             parents.push(p);
+            if (parents.length >= MAX_PARENTS) break;
           }
 
           for (const p of parents) {
-            const full = (p.innerText || "").trim();
+            // Element-local text only — never document.body.innerText.
+            const full = (p.textContent || "").trim();
             if (!PhoLine.isPhoLine(full)) continue;
             p.dataset.phoDone = "1";
             p.title = "abgerechnet ≈ " + countTokens(full) + " · " + full;
@@ -127,53 +162,20 @@
           }
         } finally {
           decoding = false;
-          if (obs) {
-            obs.observe(document.body || document.documentElement, {
-              childList: true,
-              subtree: true,
-            });
-          }
         }
       });
     } catch {
       decoding = false;
-      if (obs) {
-        obs.observe(document.body || document.documentElement, {
-          childList: true,
-          subtree: true,
-        });
-      }
     }
   }
 
-  function scheduleDecode() {
-    clearTimeout(decodeTimer);
-    decodeTimer = setTimeout(decodeTree, 600);
-  }
-
-  function mutationHasPilcrow(records) {
-    for (const r of records) {
-      for (const n of r.addedNodes) {
-        const t = n.nodeType === 3 ? n.nodeValue : n.textContent;
-        if (t && t.includes("¶")) return true;
-      }
+  /** After a send: a few one-shot passes, then stop. No MutationObserver. */
+  function scheduleDecodePasses() {
+    for (const t of pendingDecodeTimers) clearTimeout(t);
+    pendingDecodeTimers.length = 0;
+    for (const ms of DECODE_PASSES) {
+      pendingDecodeTimers.push(setTimeout(decodeTree, ms));
     }
-    return false;
-  }
-
-  function startDecodeWatch() {
-    if (watchStarted) return;
-    watchStarted = true;
-    if (!obs) {
-      obs = new MutationObserver((records) => {
-        if (mutationHasPilcrow(records)) scheduleDecode();
-      });
-    }
-    obs.observe(document.body || document.documentElement, {
-      childList: true,
-      subtree: true,
-    });
-    scheduleDecode();
   }
 
   window.addEventListener("message", async (e) => {
@@ -182,7 +184,7 @@
     if (e.data.type === "PHOLINE_READY") {
       await chrome.storage.local.set({
         "pholine.hook": {
-          version: e.data.version || "1.4.0",
+          version: e.data.version || "1.4.1",
           at: Date.now(),
           host: location.host,
         },
@@ -192,8 +194,7 @@
 
     if (e.data.type !== "PHOLINE_STAT") return;
 
-    startDecodeWatch();
-    scheduleDecode();
+    scheduleDecodePasses();
 
     const from = String(e.data.from || "");
     const to = String(e.data.to || "");
@@ -258,15 +259,8 @@
     if (changes[KEY] || changes[LANG_KEY]) void pushCfg();
   });
 
-  // No MutationObserver at boot. One late check for ¶, then stop if none.
-  setTimeout(() => {
-    try {
-      const text = document.body && document.body.innerText;
-      if (text && text.includes("¶")) startDecodeWatch();
-    } catch {
-      /* ignore */
-    }
-  }, 8000);
+  // No boot MutationObserver and no full-page innerText scan.
+  // ¶ replies are decoded only after PHOLINE_STAT via deferred one-shots.
 
   setIdleHud();
 })();

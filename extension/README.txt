@@ -1,9 +1,10 @@
-PhoLine Chrome extension 1.4.0 (unpacked)
+PhoLine Chrome extension 1.4.1 (unpacked)
 Copyright © 2026 Christian Heinrich Hohlfeld
 ORCID: https://orcid.org/0009-0003-6634-9045
 
 Boot-safe build: hooks install after window load + 1.5s, 48KB body cap,
-strict chat endpoints only, no MutationObserver until a rewrite (or one 8s ¶ check).
+strict chat endpoints only. No full-page innerText; after PHOLINE_STAT only
+a few one-shot ¶ decode passes (no permanent MutationObserver).
 
 1. Keep this folder together (manifest.json, pho.js, hook.js, content.js, popup.*).
 2. Chrome → chrome://extensions → Developer mode on.

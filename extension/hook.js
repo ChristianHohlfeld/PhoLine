@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  const VERSION = "1.4.0";
+  const VERSION = "1.4.1";
   const MAX_BODY = 48000;
   const INSTALL_DELAY_MS = 1500;
 
