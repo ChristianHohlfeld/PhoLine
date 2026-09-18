@@ -4,17 +4,17 @@ export const DE_STOP = new Set(
   `
   der die das den dem des dessen deren
   ein eine einer einem einen eines
-  und oder aber denn
+  denn
   ist sind war waren wird werden ware waere wurde wurden worden
   hat haben hatte hatten hab
   ich du er sie es wir ihr man
   mich mir dir uns euch ihm ihnen
   in im ins auf aus bei mit nach von zu zur zum vor
-  als wie wenn weil obwohl damit dass
-  nicht nur noch auch schon so sehr ganz
+  als wie damit dass
+  noch auch schon so sehr ganz
   sich selbst
-  ja nein also hier dort da dann
-  ueber uber unter zwischen ohne gegen
+  also hier dort da dann
+  ueber uber unter zwischen gegen
   am vom beim
   mal bitte danke hallo
   fuer fur
@@ -23,19 +23,30 @@ export const DE_STOP = new Set(
 
 export const EN_STOP = new Set(
   `
-  the a an and or but if as of to in on for from by with at
+  the a an as of to in on for from by with at
   is are was were be been being
   have has had do does did
   i you he she it we they
   my your his her our their
   this that these those
-  not just really very maybe perhaps please
+  just really very maybe perhaps please
   so too also still already
   `.trim().split(/\s+/),
 );
 
 /** German surface (lower, ß ok) → channel stem(s). Multiword values allowed. */
 export const DE_CHANNEL: Record<string, string> = {
+  und: "and",
+  oder: "or",
+  aber: "but",
+  wenn: "if",
+  weil: "because",
+  obwohl: "although",
+  nicht: "not",
+  nur: "only",
+  ohne: "without",
+  ja: "yes",
+  nein: "no",
   heute: "today",
   morgen: "am",
   abend: "night",
@@ -430,6 +441,17 @@ export const DE_CHANNEL: Record<string, string> = {
 };
 
 export const CHANNEL_TO_DE: Record<string, string> = {
+  and: "und",
+  or: "oder",
+  but: "aber",
+  if: "wenn",
+  because: "weil",
+  although: "obwohl",
+  not: "nicht",
+  only: "nur",
+  without: "ohne",
+  yes: "ja",
+  no: "nein",
   today: "heute",
   am: "morgen",
   night: "abend",
@@ -711,6 +733,17 @@ for (const [de, ch] of Object.entries(DE_CHANNEL)) {
 }
 
 export const EN_CHANNEL: Record<string, string> = {
+  and: "and",
+  or: "or",
+  but: "but",
+  if: "if",
+  not: "not",
+  never: "never",
+  without: "without",
+  only: "only",
+  yes: "yes",
+  no: "no",
+  although: "although",
   architecture: "arch",
   compression: "pack",
   compress: "pack",
@@ -761,6 +794,18 @@ export const EN_CHANNEL: Record<string, string> = {
 };
 
 export const CHANNEL_TO_EN: Record<string, string> = {
+  and: "and",
+  or: "or",
+  but: "but",
+  if: "if",
+  not: "not",
+  never: "never",
+  without: "without",
+  only: "only",
+  yes: "yes",
+  no: "no",
+  although: "although",
+  because: "because",
   arch: "architecture",
   pack: "compression",
   lang: "language",
