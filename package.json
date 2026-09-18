@@ -2,7 +2,7 @@
   "name": "pholine",
   "version": "1.3.2",
   "private": true,
-  "description": "PhoLine \u2014 client-side PhO channel codec for LLM chats. By Christian Heinrich Hohlfeld, ORCID 0009-0003-6634-9045.",
+  "description": "PhoLine — client-side PhO channel codec for LLM chats. By Christian Heinrich Hohlfeld, ORCID 0009-0003-6634-9045.",
   "author": {
     "name": "Christian Heinrich Hohlfeld",
     "email": "chris.hohlfeld@gmail.com",
@@ -17,7 +17,8 @@
   "type": "module",
   "scripts": {
     "test": "node tests/codec.test.mjs",
-    "pack": "node scripts/pack-extension.mjs"
+    "pack": "node scripts/pack-extension.mjs",
+    "bench": "node benchmarks/run.mjs"
   },
   "keywords": [
     "PhO-Compress",
