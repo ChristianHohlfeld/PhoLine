@@ -920,7 +920,9 @@ OUT \xB6 mix arch split load. eye pack ctx. lang pack mean. both need pipe.`;
   function mapWord(raw, german) {
     if (/^⟦U\d+⟧$/.test(raw)) return { channel: raw, reason: "u" };
     if (!/[A-Za-zÄÖÜäöüß]/.test(raw)) {
-      if (/^[.,;:!?]+$/.test(raw)) return "drop";
+      if (/^[?]+$/.test(raw)) return { channel: "?", reason: "keep" };
+      if (/^[!]+$/.test(raw)) return { channel: "!", reason: "keep" };
+      if (/^[.,;:]+$/.test(raw)) return "drop";
       return { channel: raw, reason: "keep" };
     }
     const f = fold(raw);
@@ -978,7 +980,9 @@ OUT \xB6 mix arch split load. eye pack ctx. lang pack mean. both need pipe.`;
         continue;
       }
       if (!/[A-Za-zÄÖÜäöüß\d]/.test(t)) {
-        if (/[.!?]/.test(t)) channelParts.push(".");
+        if (/\?/.test(t)) channelParts.push("?");
+        else if (/!/.test(t)) channelParts.push("!");
+        else if (/\./.test(t)) channelParts.push(".");
         continue;
       }
       const m = mapWord(t, german);

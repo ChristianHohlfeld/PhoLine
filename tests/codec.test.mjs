@@ -180,6 +180,15 @@ check("Gemini f.req nested JSON array is rewritten", () => {
   assert.ok(!out.body.includes(prompt) || out.rewrites.length >= 1);
 });
 
+check("question mark stays on the wire, not turned into a period", () => {
+  const { wire } = Pho.encode("Warum darf man IPA nicht auf den Tokenizer legen?");
+  assert.match(wire, /\?/);
+  assert.ok(wire.trimEnd().endsWith("?"), "encoded question must end with ?");
+  const { wire: stmt } = Pho.encode("Das ist eine Aussage.");
+  assert.match(stmt, /\./);
+  assert.doesNotMatch(stmt, /\?/);
+});
+
 check("looksLikeChatPayload detects grok and chatgpt envelopes", () => {
   assert.equal(Pho.looksLikeChatPayload('{"event":{"type":"conversation.item.create","item":{"x_grok":{"input_chunks":[]}}}}'), true);
   assert.equal(Pho.looksLikeChatPayload('{"author":{"role":"user"},"content":{"parts":["hi there friend"]}}'), true);

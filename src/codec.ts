@@ -159,7 +159,9 @@ function restoreU(text: string, u: string[]): string {
 function mapWord(raw: string, german: boolean): { channel: string; reason: Kept["reason"] } | "drop" {
   if (/^⟦U\d+⟧$/.test(raw)) return { channel: raw, reason: "u" };
   if (!/[A-Za-zÄÖÜäöüß]/.test(raw)) {
-    if (/^[.,;:!?]+$/.test(raw)) return "drop";
+    if (/^[?]+$/.test(raw)) return { channel: "?", reason: "keep" };
+    if (/^[!]+$/.test(raw)) return { channel: "!", reason: "keep" };
+    if (/^[.,;:]+$/.test(raw)) return "drop";
     return { channel: raw, reason: "keep" };
   }
   const f = fold(raw);
@@ -221,7 +223,10 @@ export function encodeWire(original: string): WireTrace {
       continue;
     }
     if (!/[A-Za-zÄÖÜäöüß\d]/.test(t)) {
-      if (/[.!?]/.test(t)) channelParts.push(".");
+      // Keep sentence mood: ? must stay ?, not become .
+      if (/\?/.test(t)) channelParts.push("?");
+      else if (/!/.test(t)) channelParts.push("!");
+      else if (/\./.test(t)) channelParts.push(".");
       continue;
     }
     const m = mapWord(t, german);
