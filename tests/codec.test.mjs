@@ -189,6 +189,15 @@ check("question mark stays on the wire, not turned into a period", () => {
   assert.doesNotMatch(stmt, /\?/);
 });
 
+check("inline code and JSON stay byte-exact on wire", () => {
+  const js = "if (loaded) click(); else fetchData();";
+  const fn = "async function save(){ await api.write(state); return state.id; }";
+  const json = '{"retry":3,"timeout_ms":1500,"enabled":false}';
+  assert.ok(Pho.encode("Prüfe JavaScript: " + js + " und erkläre den Fehler.").wire.includes(js));
+  assert.ok(Pho.encode("Review code: " + fn + ".").wire.includes(fn));
+  assert.ok(Pho.encode("Keep JSON exact: " + json + ".").wire.includes(json));
+});
+
 check("semantic operators survive compression", () => {
   const de = Pho.encode("Ändere nicht die Datenbank, sondern nur die API. Wenn A und B gelten, nutze A oder B.").wire;
   const deTokens = de.split(/\s+/);
