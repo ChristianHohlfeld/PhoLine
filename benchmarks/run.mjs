@@ -27,15 +27,22 @@ function literals(text) {
 }
 
 const polaritySource = /\b(nicht|nie|niemals|ohne|kein(?:e|en|er|es)?|not|never|without|no)\b|don't|do not|must not|mustn't/i;
-const polarityWire = /\b(not|never|without|none|no|nicht|nie|niemals|ohne|kein)\b/i;
+const polarityWire = /\b(not|never|without|none|no|nicht|nie|niemals|ohne|kein(?:e|en|er|es)?)\b/i;
 const exclusiveSource = /\b(nur|only)\b/i;
 const exclusiveWire = /\b(only|nur)\b/i;
+
+const EXPECT_EXACT = {
+  "code-js": ["if (loaded) click(); else fetchData();"],
+  "en-code": ["async function save(){ await api.write(state); return state.id; }"],
+  "exact": ["test@example.com", "https://example.com/a?x=42", "ABC_2048"],
+  "exact-json": ['{"retry":3,"timeout_ms":1500,"enabled":false}']
+};
 
 const rows = PROMPTS.map((p) => {
   const out = Pho.encode(p.text);
   const originalTokens = count(p.text);
   const wireTokens = count(out.wire);
-  const exact = literals(p.text);
+  const exact = [...new Set([...literals(p.text), ...(EXPECT_EXACT[p.category] || [])])];
   const missingLiterals = exact.filter((x) => !out.wire.includes(x));
   const hasPolarity = polaritySource.test(p.text);
   const polarityKept = !hasPolarity || polarityWire.test(out.wire);
