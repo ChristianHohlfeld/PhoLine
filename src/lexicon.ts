@@ -725,7 +725,6 @@ export const CHANNEL_TO_DE: Record<string, string> = {
   chapter: "kapitel",
   self: "selbst",
   wrong: "falsch",
-  no: "nein",
 };
 
 for (const [de, ch] of Object.entries(DE_CHANNEL)) {
